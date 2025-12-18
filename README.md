@@ -6,6 +6,11 @@
 
 ```
 game-members-home-system/
+├── .github/                                # GitHub 配置目录
+│   └── workflows/                          # GitHub Actions 工作流配置
+│       ├── ci.yml                          # CI 持续集成工作流
+│       ├── dev-deploy.yml                  # 开发环境部署工作流
+│       └── pr-check.yml                    # Pull Request 检查工作流
 ├── app/                                    # 主应用程序目录
 │   ├── main.py                             # 程序入口文件，负责应用的初始化和装配
 │   ├── api/                                # API 接口层，处理 HTTP 请求和响应
@@ -48,7 +53,7 @@ game-members-home-system/
 ├── docker-compose.yml                      # Docker Compose 编排配置
 ├── Dockerfile                              # Docker 镜像构建文件
 ├── Makefile                                # 常用命令脚本
+├── pdm.lock                                # PDM 锁定文件
 ├── pyproject.toml                          # 项目配置和依赖管理
 └── README.md                               # 项目说明文档
 ```
-
