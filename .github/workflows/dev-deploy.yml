@@ -16,6 +16,16 @@ jobs:
 
       - name: Install PDM
         run: pip install pdm
+      - name: Cache PDM virtualenv
+        uses: actions/cache@v4
+        with:
+          path: |
+            __pypackages__/
+            .venv/
+            ~/.cache/pip
+          key: ${{ runner.os }}-py3.12-${{ hashFiles('pdm.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-py3.12-
 
       - name: Install dependencies
         run: make install

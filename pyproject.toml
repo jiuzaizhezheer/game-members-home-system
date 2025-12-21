@@ -25,9 +25,44 @@ requires-python = "==3.12.*"
 readme = "README.md"
 license = {text = "MIT"}
 
+[project.optional-dependencies]
+dev = [
+    "pre-commit>=3.7.0",
+    "black>=23.1.0",
+    "ruff>=0.1.14",
+    "mypy>=1.8.0",
+    "pytest>=7.4.0",
+    "python-dotenv>=1.0.1",
+]
 
 [tool.pdm]
 distribution = false
+
+[tool.black]
+line-length = 88
+target-version = ["py312"]
+skip-string-normalization = false
+
+[tool.ruff]
+line-length = 88
+target-version = "py312"
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP"]
+ignore = ["E501"]
+
+[tool.mypy]
+python_version = "3.12"
+warn_unused_ignores = true
+warn_redundant_casts = true
+warn_unreachable = true
+check_untyped_defs = true
+strict_optional = true
+exclude = ["app/tests/"]
 
 [build-system]
 requires = ["pdm-backend"]
