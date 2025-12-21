@@ -36,13 +36,16 @@ dev-install: ## Install development dependencies
 # 代码质量
 # ========================
 format: ## Auto format code
+	$(PYTHON) python -c "import ruff.__main__" || $(PYTHON) pip install ruff
 	$(PYTHON) ruff format .
 	$(PYTHON) ruff check . --fix
 
 lint: ## Lint code
+	$(PYTHON) python -c "import ruff.__main__" || $(PYTHON) pip install ruff
 	$(PYTHON) ruff check .
 
 typecheck: ## Static type checking
+	$(PYTHON) python -c "import mypy" || $(PYTHON) pip install mypy
 	$(PYTHON) mypy app
 
 test: ## Run tests
