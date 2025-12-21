@@ -69,6 +69,7 @@ migrate: ## Apply database migrations
 # 工程化
 # ========================
 pre-commit: ## Run pre-commit on all files
+	$(PYTHON) python -c "import pre_commit" || $(PYTHON) pip install pre-commit
 	$(PYTHON) pre-commit run --all-files || $(PYTHON) python -m pre_commit run --all-files
 
 ci: install check ## CI pipeline entry
