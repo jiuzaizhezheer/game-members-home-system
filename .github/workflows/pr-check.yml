@@ -2,9 +2,12 @@ name: PR Check
 
 on:
   pull_request:
-    branches: [ main ]
+    types: [opened, synchronize, reopened]
+    branches:
+      - "**"
   push:
-    branches: [ main ]
+    branches:
+      - "**"
 
 jobs:
   pr-check:
