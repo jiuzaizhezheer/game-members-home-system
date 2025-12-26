@@ -1,8 +1,11 @@
 import asyncio
 
+import pytest
+
 from app.services.captcha_service import CaptchaService
 
 
+@pytest.mark.asyncio(loop_scope="session")
 async def test_captcha_flow():
     print("开始测试验证码流程...")
     service = CaptchaService()
@@ -45,6 +48,9 @@ async def test_captcha_flow():
     assert is_valid is False
 
     print("\n所有测试通过！")
+
+    # 等待连接释放
+    await asyncio.sleep(0.1)
 
 
 if __name__ == "__main__":

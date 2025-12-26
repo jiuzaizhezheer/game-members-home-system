@@ -31,4 +31,4 @@ async def get_redis() -> AsyncGenerator[redis.Redis, None]:
         yield client
     finally:
         # redis-py 的客户端会自动管理连接释放回池
-        await client.close()
+        await client.aclose()

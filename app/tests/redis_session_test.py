@@ -5,7 +5,7 @@ import pytest
 from app.redis import get_redis
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio(loop_scope="session")
 async def test_redis_session_manager():
     """
     测试 Redis 上下文管理器
@@ -32,6 +32,9 @@ async def test_redis_session_manager():
         exists = await redis.exists(test_key)
         assert exists == 0
         print("Delete verification passed")
+
+    # 等待一小段时间让连接释放，避免 Windows 下的 Event loop closed 问题
+    await asyncio.sleep(0.1)
 
 
 if __name__ == "__main__":
