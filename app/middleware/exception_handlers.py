@@ -16,9 +16,13 @@ logger = logging.getLogger("uvicorn")
 # 注册异常处理程序
 def register_exception_handlers(app: FastAPI) -> None:
     app.add_exception_handler(
-        DuplicateResourceError, duplicate_resource_exception_handler
+        DuplicateResourceError,  # type: ignore
+        duplicate_resource_exception_handler,
     )
-    app.add_exception_handler(ValidationError, validation_exception_handler)
+    app.add_exception_handler(
+        ValidationError,  # type: ignore
+        validation_exception_handler,
+    )
     app.add_exception_handler(Exception, unknown_exception_handler)
 
 

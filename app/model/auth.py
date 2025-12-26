@@ -18,7 +18,8 @@ class RegisterRequest(BaseModel):
     captcha_code: str = Field(min_length=6, max_length=6, description="验证码文本")
 
     @field_validator("password")
-    def _password_has_letter_and_digit(v: str) -> str:
+    @classmethod
+    def _password_has_letter_and_digit(cls, v: str) -> str:
         if re.search(r"[A-Za-z]", v) is None or re.search(r"\d", v) is None:
             raise ValueError(PASSWORD_MUST_CONTAIN_LETTER_AND_DIGIT)
         return v

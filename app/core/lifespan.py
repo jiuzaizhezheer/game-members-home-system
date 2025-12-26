@@ -23,7 +23,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         logger.info("已开启数据库连接")
         # 初始化Redis
         async with get_redis() as client:
-            await client.ping()
+            await client.ping()  # type: ignore
         logger.info("已开启Redis连接")
         yield
     finally:
