@@ -1,6 +1,6 @@
 -- 游戏会员之家系统 PostgreSQL 初始化脚本
 -- 数据库：game_member_hub（由容器创建，脚本只负责建表/索引/种子数据）
--- 兼容：PostgreSQL 15，Docker 初始化（docker-compose.yml:47）
+-- 兼容：PostgreSQL 15，Docker 初始化（docker-compose.yml）
 
 SET client_encoding = 'UTF8';
 SET TIME ZONE 'UTC';

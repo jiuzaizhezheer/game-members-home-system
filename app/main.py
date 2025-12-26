@@ -1,15 +1,14 @@
 from fastapi import FastAPI
 
+from app.api.router import api_router
 from app.core.lifespan import lifespan
+from app.middleware.exception_handlers import register_exception_handlers
 
 app = FastAPI(lifespan=lifespan)
+app.include_router(api_router)
+register_exception_handlers(app)
 
 
-@app.get("/")
-async def root():
-    return {"message": "Welcome to Game Members Home System"}
-
-
-@app.get("/healthy")
+@app.get("/healthy", tags=["Health"])
 async def healthy():
-    return {"message": "Healthy"}
+    return {"status": "ok"}
