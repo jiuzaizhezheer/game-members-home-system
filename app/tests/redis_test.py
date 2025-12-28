@@ -3,7 +3,7 @@ import asyncio
 import redis.asyncio as redis
 
 # Redis 连接配置
-REDIS_URL = "redis://localhost:6379/8"
+REDIS_URL = "redis://127.0.0.1:6379/8"
 
 
 async def redis_demo():
@@ -42,7 +42,7 @@ async def redis_demo():
 
     except Exception as e:
         print(f"An error occurred: {e}")
-        print("\n提示: 请确保 Redis 服务已启动并在 localhost:6379 运行。")
+        print("\n提示: 请确保 Redis 服务已启动并在 127.0.0.1:6379 运行。")
         print("如果未安装 redis 库，请运行: pdm add redis")
     finally:
         # 关闭连接

@@ -3,6 +3,7 @@
 	install dev-install \
 	format lint typecheck test check \
 	run \
+	docker-up docker-down \
 	makemigrations migrate \
 	pre-commit ci clean
 
@@ -58,6 +59,15 @@ check: format lint typecheck test ## Run all checks
 # ========================
 run: ## Run development server
 	$(PYTHON) uvicorn $(APP_MODULE) --reload
+
+# ========================
+# Docker
+# ========================
+docker-up: ## Start docker services
+	docker compose up -d
+
+docker-down: ## Stop docker services
+	docker compose down
 
 # ========================
 # 数据库
