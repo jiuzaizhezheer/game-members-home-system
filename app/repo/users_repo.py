@@ -1,4 +1,4 @@
-from sqlalchemy import exists, select
+from sqlalchemy import exists, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.entity import User
@@ -10,8 +10,11 @@ async def exists_by_username_or_email(
 ) -> bool:
     stmt = select(
         exists().where(
-            (User.is_active.is_(True))
-            & ((User.username == username) | (User.email == email))
+            User.is_active.is_(True),
+            or_(
+                User.username == username,
+                User.email == email,
+            ),
         )
     )
     return bool(await session.scalar(stmt))
@@ -24,11 +27,11 @@ async def insert(session: AsyncSession, user: User) -> User:
     return user
 
 
-# async def get_by_username(session: AsyncSession, username: str) -> User | None:
-#     stmt = select(User).where(User.username == username)
-#     return (await session.execute(stmt)).scalar_one_or_none()
+async def get_by_username(session: AsyncSession, username: str) -> User | None:
+    stmt = select(User).where(User.is_active.is_(True), User.username == username)
+    return (await session.execute(stmt)).scalar_one_or_none()
 
 
-# async def update_password_hash(session: AsyncSession, user: User, password_hash: str) -> None:
-#     user.password_hash = password_hash
-#     await session.flush()
+async def get_by_email(session: AsyncSession, email: str) -> User | None:
+    stmt = select(User).where(User.is_active.is_(True), User.email == email)
+    return (await session.execute(stmt)).scalar_one_or_none()

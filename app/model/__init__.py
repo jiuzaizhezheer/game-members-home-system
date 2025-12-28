@@ -1,7 +1,4 @@
 from .auth import (
-    ChangePasswordRequest as ChangePasswordRequest,
-)
-from .auth import (
     LoginRequest as LoginRequest,
 )
 from .auth import (

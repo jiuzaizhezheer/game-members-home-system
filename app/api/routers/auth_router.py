@@ -3,9 +3,10 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, status
 
 from app.api.deps import get_auth_service, get_captcha_service
-from app.common.constants import INVALID_CAPTCHA, REGISTER_SUCCESS
+from app.common.constants import INVALID_CAPTCHA, LOGIN_SUCCESS, REGISTER_SUCCESS
 from app.common.errors import ValidationError
 from app.model import (
+    LoginRequest,
     RegisterRequest,
     SuccessResponse,
     UserOut,
@@ -37,21 +38,14 @@ async def register(
     return SuccessResponse[UserOut](message=REGISTER_SUCCESS, data=user_out)
 
 
-# @router.post("/login", response_model=UserOut)
-# async def login(payload: LoginRequest, service: AuthService = Depends(get_auth_service)) -> Any:
-#     try:
-#         user = await service.login_user(payload)
-#         return _to_user_out(user)
-#     except UnauthorizedError as e:
-#         raise HTTPException(status_code=401, detail=str(e))
-
-
-# @router.post("/change-password")
-# async def change_password(payload: ChangePasswordRequest, service: AuthService = Depends(get_auth_service)) -> Any:
-#     try:
-#         await service.change_password(payload)
-#         return {"message": "密码已更新"}
-#     except NotFoundError as e:
-#         raise HTTPException(status_code=404, detail=str(e))
-#     except UnauthorizedError as e:
-#         raise HTTPException(status_code=401, detail=str(e))
+@router.post(
+    "/login",
+    response_model=SuccessResponse[UserOut],
+    status_code=status.HTTP_200_OK,
+)
+async def login(
+    payload: LoginRequest,
+    auth_service: Annotated[AuthService, Depends(get_auth_service)],
+) -> SuccessResponse[UserOut]:
+    user_out = await auth_service.login_user(payload)
+    return SuccessResponse[UserOut](message=LOGIN_SUCCESS, data=user_out)

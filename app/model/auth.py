@@ -2,11 +2,17 @@ import re
 
 from pydantic import BaseModel, EmailStr, Field, field_validator
 
-from app.common.constants import PASSWORD_MUST_CONTAIN_LETTER_AND_DIGIT
+from app.common.constants import (
+    PASSWORD_MUST_CONTAIN_LETTER_AND_DIGIT,
+    USERNAME_CANNOT_BE_EMAIL,
+)
+from app.common.utils import is_valid_email
 
 
 class RegisterRequest(BaseModel):
-    username: str = Field(min_length=5, max_length=64, description="用户名")
+    username: str = Field(
+        min_length=5, max_length=64, description="用户名(不能为邮箱格式)"
+    )
     email: EmailStr = Field(description="邮箱")
     password: str = Field(
         min_length=6,
@@ -17,6 +23,13 @@ class RegisterRequest(BaseModel):
     captcha_id: str = Field(min_length=36, max_length=36, description="验证码ID")
     captcha_code: str = Field(min_length=6, max_length=6, description="验证码文本")
 
+    @field_validator("username")
+    @classmethod
+    def username_not_email(cls, v: str):
+        if is_valid_email(v):
+            raise ValueError(USERNAME_CANNOT_BE_EMAIL)
+        return v
+
     @field_validator("password")
     @classmethod
     def _password_has_letter_and_digit(cls, v: str) -> str:
@@ -26,11 +39,5 @@ class RegisterRequest(BaseModel):
 
 
 class LoginRequest(BaseModel):
-    username: str
-    password: str
-
-
-class ChangePasswordRequest(BaseModel):
-    username: str
-    old_password: str
-    new_password: str = Field(min_length=6, max_length=128)
+    username_or_email: str = Field(description="用户名或邮箱")
+    password: str = Field(description="密码")
