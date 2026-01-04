@@ -1,28 +1,55 @@
-import hashlib
-import os
-import secrets
+import logging
+from typing import Annotated
+
+from fastapi import Depends, HTTPException, Request, status
+from fastapi.security import OAuth2PasswordBearer
+from jose import ExpiredSignatureError, JWTError
+
+from app.utils.token_util import decode_access_token
+
+oauth2_scheme = OAuth2PasswordBearer(
+    tokenUrl="/users/login",
+    refreshUrl="commons/token/refresh",
+)
+
+logger = logging.getLogger("uvicorn")
 
 
-def _pbkdf2_hash(password: str, salt: bytes, iterations: int = 480000) -> bytes:
-    return hashlib.pbkdf2_hmac("sha256", password.encode("utf-8"), salt, iterations)
+class RoleChecker:
+    def __init__(self, *allowed_roles: str):
+        self.allowed_roles = allowed_roles
 
+    async def __call__(
+        self, request: Request, token: Annotated[str, Depends(oauth2_scheme)]
+    ):
+        logger.info(f"access token: {token}")
+        try:
+            payload = decode_access_token(token)
+        except ExpiredSignatureError:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Token expired",
+                headers={
+                    "WWW-Authenticate": 'Bearer error="invalid_token", error_description="The token is expired"'
+                },
+            ) from None
+        except JWTError:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Could not validate credentials",
+                headers={"WWW-Authenticate": "Bearer"},
+            ) from None
 
-def hash_password(password: str) -> str:
-    iterations = 480000
-    salt = os.urandom(16)
-    digest = _pbkdf2_hash(password, salt, iterations)
-    return f"pbkdf2_sha256${iterations}${salt.hex()}${digest.hex()}"
+        role = payload.get("role")
+        user_id = payload.get("sub")
+        logger.info(f"role: {role}")
+        logger.info(f"user_id: {user_id}")
 
+        if self.allowed_roles and role not in self.allowed_roles:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Operation not permitted",
+            )
 
-def verify_password(password: str, encoded: str) -> bool:
-    try:
-        algo, iter_str, salt_hex, digest_hex = encoded.split("$", 3)
-        if algo != "pbkdf2_sha256":
-            return False
-        iterations = int(iter_str)
-        salt = bytes.fromhex(salt_hex)
-        expected = bytes.fromhex(digest_hex)
-        computed = _pbkdf2_hash(password, salt, iterations)
-        return secrets.compare_digest(computed, expected)
-    except Exception:
-        return False  # 安全起见，返回False
+        # 将 user_id 存储到 request.state 中，以便后续使用
+        request.state.user_id = user_id

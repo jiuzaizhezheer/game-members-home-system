@@ -26,3 +26,13 @@ REDIS_PORT: int = int(os.getenv("REDIS_PORT", 6379))
 REDIS_DB: int = int(os.getenv("REDIS_DB", 8))
 
 REDIS_URL: str = f"redis://{REDIS_HOST}:{REDIS_PORT}/{REDIS_DB}"
+
+# JWT
+SECRET_KEY: str = os.getenv("SECRET_KEY", "your-secret-key-here")
+ALGORITHM: str = os.getenv("ALGORITHM", "HS256")
+ACCESS_TOKEN_EXPIRE_MINUTES: int = int(
+    os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", 30)
+)  # 30 minutes
+REFRESH_TOKEN_EXPIRE_DAYS: int = int(
+    os.getenv("REFRESH_TOKEN_EXPIRE_DAYS", 7)
+)  # 7 days

@@ -14,7 +14,6 @@ class SuccessResponse(BaseModel, Generic[T]):
 
 # 异常时响应
 class ErrorResponse:
-
     @staticmethod
     def build(status_code: int, message: str) -> JSONResponse:
         return JSONResponse(

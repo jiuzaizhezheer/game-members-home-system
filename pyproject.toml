@@ -19,6 +19,8 @@ dependencies = [
     "alembic>=1.13.2",
     "email-validator>=2.3.0",
     "redis>=7.1.0",
+    "python-jose[cryptography]>=3.5.0",
+    "python-multipart>=0.0.21",
 ]
 requires-python = ">=3.12"
 
@@ -30,6 +32,7 @@ dev = [
     "mypy==1.19.1",
     "pytest>=7.4.0",
     "pytest-asyncio>=0.25.0",
+    "types-python-jose>=3.5.0.20250531",
 ]
 
 [build-system]

@@ -1,2 +1,2 @@
-from .auth_service import AuthService as AuthService
 from .captcha_service import CaptchaService as CaptchaService
+from .user_service import UserService as UserService
