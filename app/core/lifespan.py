@@ -7,7 +7,7 @@ from sqlalchemy import text
 
 from app.database.session import engine
 from app.redis import get_redis, redis_pool
-from app.services import AuthService, CaptchaService
+from app.services import CaptchaService, UserService
 
 
 @asynccontextmanager
@@ -15,15 +15,15 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     logger = logging.getLogger("uvicorn")
     try:
         # 单例模式
-        app.state.auth_service = AuthService()
+        app.state.user_service = UserService()
         app.state.captcha_service = CaptchaService()
         # 初始化pgsql
         async with engine.begin() as conn:
             await conn.execute(text("SELECT 1"))
         logger.info("已开启数据库连接")
         # 初始化Redis
-        async with get_redis() as client:
-            await client.ping()  # type: ignore
+        async with get_redis() as redis:
+            await redis.ping()  # type: ignore
         logger.info("已开启Redis连接")
         yield
     finally:

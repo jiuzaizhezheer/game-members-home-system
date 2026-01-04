@@ -3,6 +3,7 @@ import random
 import string
 import uuid
 
+from app.model import CaptchaOut
 from app.redis import get_redis
 
 
@@ -11,9 +12,9 @@ class CaptchaService:
     验证码服务，使用 Redis 存储
     """
 
-    REDIS_PREFIX = "captcha:"
+    CAPTCHA_PREFIX = "captcha:"
     # 2分钟有效期
-    EXPIRE_SECONDS = 120
+    EXPIRE_SECONDS = 60
 
     def _random_code(self, length: int = 6) -> str:
         """生成随机验证码文本（大写字母 + 数字）"""
@@ -45,7 +46,7 @@ class CaptchaService:
         return svg
 
     # 生成验证码
-    async def create_captcha(self) -> dict:
+    async def create_captcha(self) -> CaptchaOut:
         """
         生成验证码
         Returns:
@@ -65,11 +66,11 @@ class CaptchaService:
         image_data = f"data:image/svg+xml;base64,{encoded}"
 
         # 存入 Redis
-        key = f"{self.REDIS_PREFIX}{captcha_id}"
-        async with get_redis() as client:
-            await client.set(key, code.lower(), ex=self.EXPIRE_SECONDS)
+        key = f"{self.CAPTCHA_PREFIX}{captcha_id}"
+        async with get_redis() as redis:
+            await redis.setex(key, self.EXPIRE_SECONDS, code.lower())
 
-        return {"id": captcha_id, "image": image_data}
+        return CaptchaOut(id=captcha_id, image=image_data)
 
     # 验证验证码
     async def verify_captcha(self, captcha_id: str, code: str) -> bool:
@@ -80,9 +81,9 @@ class CaptchaService:
         if not captcha_id or not code:
             return False
 
-        key = f"{self.REDIS_PREFIX}{captcha_id}"
-        async with get_redis() as client:
-            stored_code = await client.get(key)
+        key = f"{self.CAPTCHA_PREFIX}{captcha_id}"
+        async with get_redis() as redis:
+            stored_code = await redis.get(key)
 
             if not stored_code:
                 return False
@@ -90,7 +91,7 @@ class CaptchaService:
             # 验证码匹配（不区分大小写）
             if stored_code == code.strip().lower():
                 # 验证成功，删除验证码
-                await client.delete(key)
+                await redis.delete(key)
                 return True
 
             return False

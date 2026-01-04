@@ -25,8 +25,8 @@ async def test_captcha_flow():
     # 通过私有方法访问 Redis 获取 code，模拟用户识别图片
     from app.redis import get_redis
 
-    async with get_redis() as r:
-        real_code = await r.get(f"captcha:{captcha_id}")
+    async with get_redis() as redis:
+        real_code = await redis.get(f"captcha:{captcha_id}")
     print(f"Real Code (from Redis): {real_code}")
 
     # 2. 验证错误的验证码

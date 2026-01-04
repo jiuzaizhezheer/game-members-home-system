@@ -1,6 +1,6 @@
 from pydantic import ValidationError
 
-from app.model.auth import RegisterRequest
+from app.model.user import RegisterRequest
 
 try:
     # 测试正确的情况
