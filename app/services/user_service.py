@@ -20,7 +20,6 @@ from app.utils.validutil import is_valid_email
 
 
 class UserService:
-
     async def register(self, payload: UserRegisterRequest) -> None:
         """用户注册服务"""
         async with get_session() as session:

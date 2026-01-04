@@ -30,7 +30,7 @@ router = APIRouter()
     status_code=status.HTTP_200_OK,
 )
 async def generate_captcha(
-    captcha_service: Annotated[CaptchaService, Depends(get_captcha_service)]
+    captcha_service: Annotated[CaptchaService, Depends(get_captcha_service)],
 ) -> SuccessResponse[CaptchaOut]:
     """生成图片验证码
     返回：

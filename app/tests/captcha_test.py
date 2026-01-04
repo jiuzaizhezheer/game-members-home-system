@@ -13,8 +13,8 @@ async def test_captcha_flow():
     # 1. 生成验证码
     print("\n[Step 1] 生成验证码...")
     result = await service.create_captcha()
-    captcha_id = result["id"]
-    image_base64 = result["image"]
+    captcha_id = result.id
+    image_base64 = result.image
 
     print(f"Captcha ID: {captcha_id}")
     print(f"Image length: {len(image_base64)}")
