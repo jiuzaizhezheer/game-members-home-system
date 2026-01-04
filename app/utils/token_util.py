@@ -1,6 +1,7 @@
 import json
 import uuid
 from datetime import UTC, datetime, timedelta
+from typing import Any
 
 from jose import jwt
 
@@ -17,7 +18,7 @@ REFRESH_TOKEN_PREFIX = "refresh_token:"
 
 def get_access_token(user_id: str, role: str) -> str:
     """生成访问令牌"""
-    to_encode = {"sub": user_id, "role": role}
+    to_encode: dict[str, Any] = {"sub": user_id, "role": role}
     expire = datetime.now(UTC) + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     to_encode.update({"exp": expire})
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)

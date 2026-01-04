@@ -56,8 +56,8 @@ async def refresh_token(
     if not token_data:
         raise ValidationError(REFRESH_TOKEN_INVALID)
 
-    user_id = token_data.get("user_id")
-    role = token_data.get("role")
+    user_id = str(token_data.get("user_id"))
+    role = str(token_data.get("role"))
 
     # 2. 生成新的 token
     new_access_token = get_access_token(user_id, role)
