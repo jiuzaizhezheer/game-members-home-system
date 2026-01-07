@@ -1,6 +1,6 @@
-from app.redis.session import (
-    get_redis as get_redis,
-)
-from app.redis.session import (
-    redis_pool as redis_pool,
-)
+from .session import get_redis, redis_pool
+
+__all__ = [
+    "get_redis",
+    "redis_pool",
+]

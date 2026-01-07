@@ -42,6 +42,9 @@ build-backend = "pdm.backend"
 [tool.pdm]
 distribution = false
 
+[tool.pdm.check]
+pdm_version = ">=2.26.1"
+
 [[tool.pdm.sources]]
 name = "pypi"
 url = "https://pypi.org/simple"
