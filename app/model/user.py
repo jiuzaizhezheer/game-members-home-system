@@ -5,16 +5,13 @@ from pydantic import BaseModel, EmailStr, Field, field_validator, model_validato
 from app.common.constants import (
     NEW_PASSWORD_SAME_AS_OLD,
     PASSWORD_MUST_CONTAIN_LETTER_AND_DIGIT,
-    USERNAME_CANNOT_BE_EMAIL,
 )
 from app.common.enums import RoleEnum
-from app.utils.validutil import id_password_has_letter_and_digit, is_valid_email
+from app.utils.validutil import id_password_has_letter_and_digit
 
 
 class UserRegisterRequest(BaseModel):
-    username: str = Field(
-        min_length=5, max_length=64, description="用户名(不能为邮箱格式)"
-    )
+    username: str = Field(min_length=5, max_length=64, description="用户名")
     email: EmailStr = Field(description="邮箱")
     password: str = Field(
         min_length=6,
@@ -25,13 +22,6 @@ class UserRegisterRequest(BaseModel):
     captcha_id: str = Field(min_length=36, max_length=36, description="验证码ID")
     captcha_code: str = Field(min_length=6, max_length=6, description="验证码文本")
 
-    @field_validator("username")
-    @classmethod
-    def _username_not_email(cls, v: str):
-        if is_valid_email(v):
-            raise ValueError(USERNAME_CANNOT_BE_EMAIL)
-        return v
-
     @field_validator("password")
     @classmethod
     def _password_has_letter_and_digit(cls, v: str) -> str:
@@ -41,8 +31,9 @@ class UserRegisterRequest(BaseModel):
 
 
 class UserLoginRequest(BaseModel):
-    username_or_email: str = Field(description="用户名或邮箱")
+    email: EmailStr = Field(description="邮箱")
     password: str = Field(description="密码")
+    role: RoleEnum = Field(description="角色")
 
 
 class UserChangePasswordRequest(BaseModel):

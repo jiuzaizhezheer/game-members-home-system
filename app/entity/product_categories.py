@@ -1,6 +1,6 @@
 import uuid
 
-from sqlalchemy import ForeignKey, Index
+from sqlalchemy import Index
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -11,13 +11,13 @@ class ProductCategory(Base, TimestampMixin):
     __tablename__ = "product_categories"
     product_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
-        ForeignKey("products.id", ondelete="CASCADE"),
+        # ForeignKey("products.id", ondelete="CASCADE"),  # 逻辑外键
         primary_key=True,
         comment="商品ID",
     )
     category_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
-        ForeignKey("categories.id", ondelete="CASCADE"),
+        # ForeignKey("categories.id", ondelete="CASCADE"),  # 逻辑外键
         primary_key=True,
         comment="分类ID",
     )

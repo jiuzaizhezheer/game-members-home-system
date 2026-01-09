@@ -14,6 +14,7 @@ from app.model import (
     TokenOut,
 )
 from app.services.captcha_service import CaptchaService
+from app.utils.rate_limit import RateLimiter
 from app.utils.token_util import (
     delete_refresh_token,
     get_access_token,
@@ -25,7 +26,8 @@ router = APIRouter()
 
 
 @router.get(
-    path="/captcha",
+    path="/captcha",  # TODO: 后续可能修改为向邮箱发送验证码
+    dependencies=[Depends(RateLimiter(counts=2, seconds=30))],
     response_model=SuccessResponse[CaptchaOut],
     status_code=status.HTTP_200_OK,
 )
@@ -42,7 +44,10 @@ async def generate_captcha(
 
 
 @router.post(
-    path="/token/refresh", response_model=TokenOut, status_code=status.HTTP_200_OK
+    path="/token/refresh",
+    dependencies=[Depends(RateLimiter(counts=1, seconds=60))],
+    response_model=TokenOut,
+    status_code=status.HTTP_200_OK,
 )
 async def refresh_token(
     refresh_token: Annotated[str, Body(description="刷新令牌", embed=True)],

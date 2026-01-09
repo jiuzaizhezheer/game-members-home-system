@@ -21,6 +21,7 @@ dependencies = [
     "redis>=7.1.0",
     "python-jose[cryptography]>=3.5.0",
     "python-multipart>=0.0.21",
+    "uuid6>=2025.0.1",
 ]
 requires-python = ">=3.12"
 

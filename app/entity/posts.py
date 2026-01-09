@@ -1,6 +1,7 @@
 import uuid
 
-from sqlalchemy import ForeignKey, Index, Integer, String, Text, text
+import uuid6
+from sqlalchemy import Index, Integer, String, Text, text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -12,18 +13,18 @@ class Post(Base, TimestampMixin):
     id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
         primary_key=True,
-        server_default=text("gen_random_uuid()"),
+        default=uuid6.uuid7,
         comment="帖子ID",
     )
     group_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
-        ForeignKey("community_groups.id", ondelete="CASCADE"),
+        # ForeignKey("community_groups.id", ondelete="CASCADE"),  # 逻辑外键
         nullable=False,
         comment="社群ID",
     )
     user_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
-        ForeignKey("users.id", ondelete="CASCADE"),
+        # ForeignKey("users.id", ondelete="CASCADE"),  # 逻辑外键
         nullable=False,
         comment="用户ID",
     )
