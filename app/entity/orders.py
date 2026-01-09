@@ -1,10 +1,10 @@
 import uuid
 from datetime import datetime
 
+import uuid6
 from sqlalchemy import (
     CheckConstraint,
     DateTime,
-    ForeignKey,
     Index,
     Numeric,
     String,
@@ -21,18 +21,18 @@ class Order(Base, TimestampMixin):
     id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
         primary_key=True,
-        server_default=text("gen_random_uuid()"),
+        default=uuid6.uuid7,
         comment="订单ID",
     )
     user_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
-        ForeignKey("users.id", ondelete="RESTRICT"),
+        # ForeignKey("users.id", ondelete="RESTRICT"),  # 逻辑外键
         nullable=False,
         comment="用户ID",
     )
     address_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True),
-        ForeignKey("addresses.id", ondelete="SET NULL"),
+        # ForeignKey("addresses.id", ondelete="SET NULL"),  # 逻辑外键
         comment="收货地址ID",
     )
     order_no: Mapped[str] = mapped_column(
@@ -60,6 +60,7 @@ class Order(Base, TimestampMixin):
             name="chk_orders_status",
         ),
         Index("idx_orders_user_created", "user_id", "created_at"),
+        Index("idx_orders_status", "status"),
         {"comment": "订单表：用户订单及其状态"},
     )
 

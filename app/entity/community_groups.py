@@ -1,6 +1,7 @@
 import uuid
 
-from sqlalchemy import String, Text, text
+import uuid6
+from sqlalchemy import String, Text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -13,7 +14,7 @@ class CommunityGroup(Base, TimestampMixin):
     id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
         primary_key=True,
-        server_default=text("gen_random_uuid()"),
+        default=uuid6.uuid7,
         comment="社群ID",
     )
     name: Mapped[str] = mapped_column(

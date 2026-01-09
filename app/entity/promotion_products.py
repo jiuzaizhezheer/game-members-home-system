@@ -1,6 +1,5 @@
 import uuid
 
-from sqlalchemy import ForeignKey
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -12,13 +11,13 @@ class PromotionProduct(Base, TimestampMixin):
     __table_args__ = {"comment": "促销商品关联表：活动与商品的多对多关系"}
     promotion_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
-        ForeignKey("promotions.id", ondelete="CASCADE"),
+        # ForeignKey("promotions.id", ondelete="CASCADE"),  # 逻辑外键
         primary_key=True,
         comment="促销ID",
     )
     product_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
-        ForeignKey("products.id", ondelete="CASCADE"),
+        # ForeignKey("products.id", ondelete="CASCADE"),  # 逻辑外键
         primary_key=True,
         comment="商品ID",
     )

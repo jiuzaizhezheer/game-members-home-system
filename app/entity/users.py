@@ -1,6 +1,7 @@
 import uuid
 
-from sqlalchemy import Boolean, CheckConstraint, String, text
+import uuid6
+from sqlalchemy import Boolean, CheckConstraint, String, UniqueConstraint, text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -12,15 +13,11 @@ class User(Base, TimestampMixin):
     id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
         primary_key=True,
-        server_default=text("gen_random_uuid()"),
+        default=uuid6.uuid7,
         comment="用户ID",
     )
-    username: Mapped[str] = mapped_column(
-        String(64), unique=True, nullable=False, comment="用户名"
-    )
-    email: Mapped[str] = mapped_column(
-        String(255), unique=True, nullable=False, comment="邮箱"
-    )
+    username: Mapped[str] = mapped_column(String(64), nullable=False, comment="用户名")
+    email: Mapped[str] = mapped_column(String(255), nullable=False, comment="邮箱")
     password_hash: Mapped[str] = mapped_column(
         String(255), nullable=False, comment="密码哈希"
     )
@@ -32,6 +29,8 @@ class User(Base, TimestampMixin):
     )
     __table_args__ = (
         CheckConstraint("role IN ('member','merchant','admin')", name="chk_users_role"),
+        UniqueConstraint("username", "role", name="uq_users_username_role"),
+        UniqueConstraint("email", "role", name="uq_users_email_role"),
         {"comment": "用户表：平台用户基本信息与状态"},
     )
 

@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import DateTime, ForeignKey, text
+from sqlalchemy import DateTime, text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -13,13 +13,13 @@ class GroupMember(Base, TimestampMixin):
     __table_args__ = {"comment": "社群成员表：用户加入小组的关系"}
     group_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
-        ForeignKey("community_groups.id", ondelete="CASCADE"),
+        # ForeignKey("community_groups.id", ondelete="CASCADE"),  # 逻辑外键
         primary_key=True,
         comment="社群ID",
     )
     user_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
-        ForeignKey("users.id", ondelete="CASCADE"),
+        # ForeignKey("users.id", ondelete="CASCADE"),  # 逻辑外键
         primary_key=True,
         comment="用户ID",
     )

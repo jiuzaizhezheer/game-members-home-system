@@ -1,6 +1,7 @@
 import uuid
 
-from sqlalchemy import ForeignKey, Index, Text, text
+import uuid6
+from sqlalchemy import Index, Text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -12,24 +13,24 @@ class Message(Base, TimestampMixin):
     id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
         primary_key=True,
-        server_default=text("gen_random_uuid()"),
+        default=uuid6.uuid7,
         comment="消息ID",
     )
     sender_user_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
-        ForeignKey("users.id", ondelete="CASCADE"),
+        # ForeignKey("users.id", ondelete="CASCADE"),  # 逻辑外键
         nullable=False,
         comment="发送者用户ID",
     )
     receiver_user_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
-        ForeignKey("users.id", ondelete="CASCADE"),
+        # ForeignKey("users.id", ondelete="CASCADE"),  # 逻辑外键
         nullable=False,
         comment="接收者用户ID",
     )
     order_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True),
-        ForeignKey("orders.id", ondelete="SET NULL"),
+        # ForeignKey("orders.id", ondelete="SET NULL"),  # 逻辑外键
         comment="关联订单ID",
     )
     content: Mapped[str] = mapped_column(Text, nullable=False, comment="消息内容")

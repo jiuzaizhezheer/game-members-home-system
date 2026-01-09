@@ -1,10 +1,10 @@
 import uuid
 from datetime import datetime
 
+import uuid6
 from sqlalchemy import (
     CheckConstraint,
     DateTime,
-    ForeignKey,
     Index,
     Numeric,
     String,
@@ -21,12 +21,12 @@ class Promotion(Base, TimestampMixin):
     id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
         primary_key=True,
-        server_default=text("gen_random_uuid()"),
+        default=uuid6.uuid7,
         comment="促销ID",
     )
     merchant_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
-        ForeignKey("merchants.id", ondelete="CASCADE"),
+        # ForeignKey("merchants.id", ondelete="CASCADE"),  # 逻辑外键
         nullable=False,
         comment="商家ID",
     )

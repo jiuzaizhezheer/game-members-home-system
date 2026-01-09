@@ -1,8 +1,8 @@
 import uuid
 
+import uuid6
 from sqlalchemy import (
     CheckConstraint,
-    ForeignKey,
     Index,
     Integer,
     Numeric,
@@ -21,12 +21,12 @@ class Product(Base, TimestampMixin):
     id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
         primary_key=True,
-        server_default=text("gen_random_uuid()"),
+        default=uuid6.uuid7,
         comment="商品ID",
     )
     merchant_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
-        ForeignKey("merchants.id", ondelete="CASCADE"),
+        # ForeignKey("merchants.id", ondelete="CASCADE"),  # 逻辑外键
         nullable=False,
         comment="商家ID",
     )
@@ -63,6 +63,7 @@ class Product(Base, TimestampMixin):
             postgresql_using="btree",
         ),
         Index("idx_products_views", "views_count", postgresql_using="btree"),
+        Index("idx_products_name", "name", postgresql_using="btree"),
         {"comment": "商品表：保存商品基本信息与统计数据"},
     )
 

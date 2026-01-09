@@ -1,7 +1,6 @@
 from typing import Annotated
 
 from fastapi import APIRouter, Body, Depends, status
-from fastapi.security import OAuth2PasswordRequestForm
 
 from app.api.deps import get_captcha_service, get_current_user_id, get_user_service
 from app.api.role import require_member
@@ -19,12 +18,14 @@ from app.model import (
     UserRegisterRequest,
 )
 from app.services import CaptchaService, UserService
+from app.utils.rate_limit import RateLimiter
 
 router = APIRouter()
 
 
 @router.post(
     path="/register",
+    dependencies=[Depends(RateLimiter(counts=6, seconds=60))],  # TODO: 后续可能会预定义
     response_model=SuccessResponse[None],
     status_code=status.HTTP_201_CREATED,
 )
@@ -46,27 +47,26 @@ async def register(
 
 
 @router.post(
-    "/login",
+    path="/login",
+    dependencies=[Depends(RateLimiter(counts=6, seconds=60))],
     response_model=TokenOut,
     status_code=status.HTTP_200_OK,
 )
 async def login(
-    form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
+    payload: Annotated[UserLoginRequest, Body(description="登录请求体")],
     user_service: Annotated[UserService, Depends(get_user_service)],
 ) -> TokenOut:
     """用户登录路由"""
-    # 将 OAuth2PasswordRequestForm 转换为 UserLoginRequest
-    # 注意: OAuth2PasswordRequestForm 的 username 字段对应 UserLoginRequest 的 username_or_email
-    payload = UserLoginRequest(
-        username_or_email=form_data.username, password=form_data.password
-    )
     token_out = await user_service.login(payload)
     return token_out
 
 
 @router.put(
-    "/me/password",
-    dependencies=[require_member],
+    path="/me/password",
+    dependencies=[
+        require_member,
+        Depends(RateLimiter(counts=6, seconds=60)),
+    ],  # TODO: 更多的角色
     response_model=SuccessResponse[None],
     status_code=status.HTTP_200_OK,
 )
@@ -75,6 +75,9 @@ async def change_password(
     payload: Annotated[UserChangePasswordRequest, Body(description="修改密码请求体")],
     user_service: Annotated[UserService, Depends(get_user_service)],
 ) -> SuccessResponse[None]:
-    """修改自己密码路由"""
+    """已登录情况下通过旧密码修改自己密码路由"""
     await user_service.change_password(user_id, payload)
     return SuccessResponse[None](message=CHANGE_PASSWORD_SUCCESS)
+
+
+# TODO: 重置密码路由, 不需要验证旧密码与新密码是否相同

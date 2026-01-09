@@ -1,7 +1,8 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import CheckConstraint, DateTime, ForeignKey, Numeric, String, text
+import uuid6
+from sqlalchemy import CheckConstraint, DateTime, Numeric, String, text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -13,12 +14,12 @@ class Payment(Base, TimestampMixin):
     id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
         primary_key=True,
-        server_default=text("gen_random_uuid()"),
+        default=uuid6.uuid7,
         comment="支付ID",
     )
     order_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
-        ForeignKey("orders.id", ondelete="CASCADE"),
+        # ForeignKey("orders.id", ondelete="CASCADE"),  # 逻辑外键
         nullable=False,
         comment="订单ID",
         unique=True,

@@ -1,6 +1,6 @@
 import uuid
 
-from sqlalchemy import ForeignKey, text
+import uuid6
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -13,12 +13,12 @@ class Cart(Base, TimestampMixin):
     id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
         primary_key=True,
-        server_default=text("gen_random_uuid()"),
+        default=uuid6.uuid7,
         comment="购物车ID",
     )
     user_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
-        ForeignKey("users.id", ondelete="CASCADE"),
+        # ForeignKey("users.id", ondelete="CASCADE"),  # 逻辑外键
         nullable=False,
         comment="用户ID",
         unique=True,

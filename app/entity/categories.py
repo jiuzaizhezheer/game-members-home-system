@@ -1,6 +1,7 @@
 import uuid
 
-from sqlalchemy import ForeignKey, Index, String, text
+import uuid6
+from sqlalchemy import Index, String
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -12,7 +13,7 @@ class Category(Base, TimestampMixin):
     id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
         primary_key=True,
-        server_default=text("gen_random_uuid()"),
+        default=uuid6.uuid7,
         comment="分类ID",
     )
     name: Mapped[str] = mapped_column(
@@ -23,7 +24,7 @@ class Category(Base, TimestampMixin):
     )
     parent_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True),
-        ForeignKey("categories.id", ondelete="SET NULL"),
+        # ForeignKey("categories.id", ondelete="SET NULL"),  # 逻辑外键
         comment="父分类ID",
     )
     __table_args__ = (

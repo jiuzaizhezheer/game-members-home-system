@@ -5,7 +5,7 @@
 groups = ["default", "dev"]
 strategy = ["inherit_metadata"]
 lock_version = "4.5.0"
-content_hash = "sha256:f0c0a297af0e8354155506434f1e4dcfb49e3852378ea6791cbafae0ca72c200"
+content_hash = "sha256:986056d8a3ba07038d3d43ed84df19a27b0eed1c15e0a2d893f8c7948a13b76e"
 
 [[metadata.targets]]
 requires_python = ">=3.12"
@@ -1140,6 +1140,17 @@ dependencies = [
 files = [
     {file = "typing_inspection-0.4.2-py3-none-any.whl", hash = "sha256:4ed1cacbdc298c220f1bd249ed5287caa16f34d44ef4e9c3d0cbad5b521545e7"},
     {file = "typing_inspection-0.4.2.tar.gz", hash = "sha256:ba561c48a67c5958007083d386c3295464928b01faa735ab8547c5692e87f464"},
+]
+
+[[package]]
+name = "uuid6"
+version = "2025.0.1"
+requires_python = ">=3.9"
+summary = "New time-based UUID formats which are suited for use as a database key"
+groups = ["default"]
+files = [
+    {file = "uuid6-2025.0.1-py3-none-any.whl", hash = "sha256:80530ce4d02a93cdf82e7122ca0da3ebbbc269790ec1cb902481fa3e9cc9ff99"},
+    {file = "uuid6-2025.0.1.tar.gz", hash = "sha256:cd0af94fa428675a44e32c5319ec5a3485225ba2179eefcf4c3f205ae30a81bd"},
 ]
 
 [[package]]

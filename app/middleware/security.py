@@ -2,15 +2,10 @@ import logging
 from typing import Annotated
 
 from fastapi import Depends, HTTPException, Request, status
-from fastapi.security import OAuth2PasswordBearer
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jose import ExpiredSignatureError, JWTError
 
 from app.utils.token_util import decode_access_token
-
-oauth2_scheme = OAuth2PasswordBearer(
-    tokenUrl="/users/login",
-    refreshUrl="commons/token/refresh",
-)
 
 logger = logging.getLogger("uvicorn")
 
@@ -20,8 +15,14 @@ class RoleChecker:
         self.allowed_roles = allowed_roles
 
     async def __call__(
-        self, request: Request, token: Annotated[str, Depends(oauth2_scheme)]
+        self,
+        request: Request,
+        token_credentials: Annotated[
+            HTTPAuthorizationCredentials, Depends(HTTPBearer())
+        ],
     ):
+        token = token_credentials.credentials
+        # TODO: 后续会先校验是否在黑名单（Redis）中
         logger.info(f"access token: {token}")
         try:
             payload = decode_access_token(token)
