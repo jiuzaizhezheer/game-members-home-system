@@ -2,6 +2,15 @@
 
 这是一个基于 FastAPI 构建的游戏会员家庭系统，采用分层架构设计，具有清晰的代码组织结构。
 
+## 依赖管理约定（重要）
+
+新增/升级依赖一律使用 `pdm add`，以确保 `pyproject.toml` 与 `pdm.lock` 自动同步；不要手改依赖文件后再 install。
+
+- 新增运行时依赖：`pdm add <pkg>`
+- 新增开发依赖：`pdm add -G dev <pkg>`
+- 升级依赖：`pdm add <pkg>@<version>`
+- 只做安装/还原环境：`pdm install`
+
 ## 项目结构
 
 ```
@@ -59,4 +68,4 @@ game-members-home-system/
 ```
 
 
-uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
+uvicorn app.main:app --host 127.0.0.1 --port 8000
