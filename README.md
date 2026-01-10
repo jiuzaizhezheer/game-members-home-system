@@ -1,6 +1,6 @@
-# Game Members Home System
+# Game Merchandise Trading System
 
-这是一个基于 FastAPI 构建的游戏会员家庭系统，采用分层架构设计，具有清晰的代码组织结构。
+这是一个基于 FastAPI 构建的游戏周边交易系统，采用分层架构设计，具有清晰的代码组织结构。
 
 ## 依赖管理约定（重要）
 
