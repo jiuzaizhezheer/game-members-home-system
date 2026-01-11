@@ -11,7 +11,7 @@ from app.core.config import (
     REFRESH_TOKEN_EXPIRE_DAYS,
     SECRET_KEY,
 )
-from app.redis.session import get_redis
+from app.redis import get_redis
 
 REFRESH_TOKEN_PREFIX = "refresh_token:"
 

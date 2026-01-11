@@ -1,58 +1,18 @@
 from app.common.constants import (
-    INVALID_CREDENTIALS,
     NEW_PASSWORD_SAME_AS_OLD,
     OLD_PASSWORD_ERROR,
     USER_NOT_FOUND,
-    USERNAME_OR_EMAIL_EXISTS,
 )
-from app.common.errors import DuplicateResourceError, ValidationError
+from app.common.errors import ValidationError
 from app.database import get_db
-from app.entity import User
-from app.model import (
-    TokenOut,
-    UserChangePasswordRequest,
-    UserLoginRequest,
-    UserRegisterRequest,
-)
 from app.repo import users_repo
-from app.utils.password_util import hash_password, verify_password
-from app.utils.token_util import get_access_token, get_refresh_token
+from app.schemas import UserChangePasswordIn
+from app.utils import hash_password, verify_password
 
 
 class UserService:
-    async def register(self, payload: UserRegisterRequest) -> None:
-        """用户注册服务"""
-        async with get_db() as session:
-            if await users_repo.exists_by_username_or_email_in_role(
-                session, payload.username, payload.email, payload.role
-            ):
-                raise DuplicateResourceError(USERNAME_OR_EMAIL_EXISTS)
-            user = User(
-                username=payload.username,
-                email=payload.email,
-                role=payload.role,
-                password_hash=hash_password(payload.password),
-            )
-            await users_repo.create(session, user)
-
-    async def login(self, payload: UserLoginRequest) -> TokenOut:
-        """用户登录服务"""
-        async with get_db() as session:
-            # 使用邮箱登录
-            user = await users_repo.get_by_email(session, payload.email, payload.role)
-
-            if not user or not verify_password(payload.password, user.password_hash):
-                raise ValidationError(INVALID_CREDENTIALS)
-
-            # 生成 access_token
-            access_token = get_access_token(str(user.id), user.role)
-            # 生成 refresh_token
-            refresh_token = await get_refresh_token(str(user.id), user.role)
-
-            return TokenOut(access_token=access_token, refresh_token=refresh_token)
-
     async def change_password(
-        self, user_id: str, payload: UserChangePasswordRequest
+        self, user_id: str, payload: UserChangePasswordIn
     ) -> None:
         """已登录情况下通过旧密码修改用户密码服务"""
         async with get_db() as session:

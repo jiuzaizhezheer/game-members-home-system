@@ -3,8 +3,8 @@ import random
 import string
 import uuid
 
-from app.model import CaptchaOut
 from app.redis import get_redis
+from app.schemas import CaptchaOut
 
 
 class CaptchaService:

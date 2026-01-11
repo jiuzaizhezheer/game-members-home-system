@@ -1,10 +1,9 @@
+from .auth import AuthLoginIn, AuthRegisterIn
 from .common import CaptchaOut, TokenOut
 from .response import ErrorResponse, SuccessResponse
 from .user import (
-    UserChangePasswordRequest,
-    UserLoginRequest,
+    UserChangePasswordIn,
     UserOut,
-    UserRegisterRequest,
 )
 
 __all__ = [
@@ -12,8 +11,8 @@ __all__ = [
     "TokenOut",
     "ErrorResponse",
     "SuccessResponse",
-    "UserChangePasswordRequest",
-    "UserLoginRequest",
+    "AuthLoginIn",
+    "AuthRegisterIn",
+    "UserChangePasswordIn",
     "UserOut",
-    "UserRegisterRequest",
 ]

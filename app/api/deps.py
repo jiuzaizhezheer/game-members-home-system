@@ -1,10 +1,14 @@
 from fastapi import Request
 
-from app.services import CaptchaService, UserService
+from app.services import AuthService, CaptchaService, UserService
 
 
 def get_user_service(request: Request) -> UserService:
     return request.app.state.user_service
+
+
+def get_auth_service(request: Request) -> AuthService:
+    return request.app.state.auth_service
 
 
 def get_captcha_service(request: Request) -> CaptchaService:
