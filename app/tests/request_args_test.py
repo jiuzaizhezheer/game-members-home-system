@@ -1,11 +1,11 @@
 from pydantic import ValidationError
 
-from app.model.user import UserRegisterRequest
+from app.schemas import AuthRegisterIn
 
 try:
     # 测试正确的情况
     print("Testing valid input...")
-    UserRegisterRequest(
+    AuthRegisterIn(
         username="validuser",
         email="test@example.com",
         password="password123",
@@ -18,7 +18,7 @@ try:
     # 测试 captcha_id 长度过长
     print("\nTesting invalid captcha_id length (too long)...")
     try:
-        UserRegisterRequest(
+        AuthRegisterIn(
             username="validuser",
             email="test@example.com",
             password="password123",
@@ -32,7 +32,7 @@ try:
     # 测试 captcha_code 长度过长
     print("\nTesting invalid captcha_code length (too long)...")
     try:
-        UserRegisterRequest(
+        AuthRegisterIn(
             username="validuser",
             email="test@example.com",
             password="password123",

@@ -5,7 +5,7 @@ from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jose import ExpiredSignatureError, JWTError
 
-from app.utils.token_util import decode_access_token
+from app.utils import decode_access_token
 
 logger = logging.getLogger("uvicorn")
 

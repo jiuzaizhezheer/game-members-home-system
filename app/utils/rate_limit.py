@@ -1,7 +1,7 @@
 from fastapi import HTTPException, Request, status
 
 from app.common.constants import TOO_MANY_REQUESTS
-from app.redis.session import get_redis
+from app.redis import get_redis
 
 
 class RateLimiter:

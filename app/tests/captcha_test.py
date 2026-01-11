@@ -2,7 +2,7 @@ import asyncio
 
 import pytest
 
-from app.services.captcha_service import CaptchaService
+from app.services import CaptchaService
 
 
 @pytest.mark.asyncio(loop_scope="session")

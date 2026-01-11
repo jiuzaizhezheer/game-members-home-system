@@ -8,7 +8,7 @@ from app.common.constants import (
     VALIDATION_ERROR,
 )
 from app.common.errors import DuplicateResourceError, ValidationError
-from app.model import ErrorResponse
+from app.schemas import ErrorResponse
 
 logger = logging.getLogger("uvicorn")
 
