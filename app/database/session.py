@@ -31,13 +31,8 @@ AsyncSessionLocal = async_sessionmaker(
 )
 
 
-# =============================================================================
-# 会话上下文管理器
-# =============================================================================
-
-
 @asynccontextmanager
-async def get_session() -> AsyncGenerator[AsyncSession, None]:
+async def get_db() -> AsyncGenerator[AsyncSession, None]:
     """
     会话上下文管理器：事务块自动提交/异常回滚。
     适用于增删改查操作。

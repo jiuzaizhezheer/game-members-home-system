@@ -1,7 +1,7 @@
 from fastapi import HTTPException, Request, status
 
 from app.common.constants import TOO_MANY_REQUESTS
-from app.redis.session import get_client
+from app.redis.session import get_redis
 
 
 class RateLimiter:
@@ -12,7 +12,6 @@ class RateLimiter:
     def __init__(self, counts: int, seconds: int):
         self.counts = counts
         self.seconds = seconds
-        self.redis = get_client()
 
     async def __call__(self, request: Request):
         # 1. 优先根据 User ID 限流 (针对已登录用户)
@@ -35,11 +34,11 @@ class RateLimiter:
         key = f"rate_limit:{request.url.path}:{identifier}"
 
         # 使用 Redis 计数
-        async with self.redis as client:
+        async with get_redis() as redis:
             # 增加计数并设置过期时间
             # 使用 pipeline 保证原子性
             # 滑动窗口限流: 必须完全间隔seconds时间窗口, 才能再次请求
-            pipe = client.pipeline()
+            pipe = redis.pipeline()
             await pipe.incr(key)
             await pipe.expire(key, self.seconds)
             # 返回的结果是一个列表，每个命令的结果按顺序排列

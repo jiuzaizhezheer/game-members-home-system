@@ -5,7 +5,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from sqlalchemy import text
 
-from app.database.session import engine
+from app.database import engine
 from app.redis import get_redis, redis_pool
 from app.services import CaptchaService, UserService
 

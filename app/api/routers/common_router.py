@@ -22,10 +22,10 @@ from app.utils.token_util import (
     verify_refresh_token,
 )
 
-router = APIRouter()
+common_router = APIRouter()
 
 
-@router.get(
+@common_router.get(
     path="/captcha",  # TODO: 后续可能修改为向邮箱发送验证码
     dependencies=[Depends(RateLimiter(counts=2, seconds=30))],
     response_model=SuccessResponse[CaptchaOut],
@@ -43,7 +43,7 @@ async def generate_captcha(
     return SuccessResponse[CaptchaOut](message=CAPTCHA_GENERATE_SUCCESS, data=captcha)
 
 
-@router.post(
+@common_router.post(
     path="/token/refresh",
     dependencies=[Depends(RateLimiter(counts=1, seconds=60))],
     response_model=TokenOut,
