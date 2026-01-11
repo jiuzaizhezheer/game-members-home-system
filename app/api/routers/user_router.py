@@ -20,10 +20,10 @@ from app.model import (
 from app.services import CaptchaService, UserService
 from app.utils.rate_limit import RateLimiter
 
-router = APIRouter()
+user_router = APIRouter()
 
 
-@router.post(
+@user_router.post(
     path="/register",
     dependencies=[Depends(RateLimiter(counts=6, seconds=60))],  # TODO: 后续可能会预定义
     response_model=SuccessResponse[None],
@@ -46,7 +46,7 @@ async def register(
     return SuccessResponse[None](message=REGISTER_SUCCESS)
 
 
-@router.post(
+@user_router.post(
     path="/login",
     dependencies=[Depends(RateLimiter(counts=6, seconds=60))],
     response_model=TokenOut,
@@ -61,7 +61,7 @@ async def login(
     return token_out
 
 
-@router.put(
+@user_router.put(
     path="/me/password",
     dependencies=[
         require_member,
