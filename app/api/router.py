@@ -10,5 +10,5 @@ from app.api.routers import (
 api_routers = APIRouter(prefix="/api")
 
 api_routers.include_router(user_router, prefix="/users", tags=["users"])
-api_routers.include_router(auth_router, prefix="/auth", tags=["auth"])
+api_routers.include_router(auth_router, prefix="/auths", tags=["auths"])
 api_routers.include_router(common_router, prefix="/commons", tags=["commons"])
