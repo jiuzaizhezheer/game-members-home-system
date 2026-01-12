@@ -1,4 +1,5 @@
 import logging
+from collections.abc import Mapping, Sequence
 
 from fastapi import FastAPI, HTTPException, Request, status
 from fastapi.exceptions import RequestValidationError
@@ -38,10 +39,12 @@ def _extract_message_from_detail(detail: object) -> str:
 
 
 # 从 RequestValidationError 中扁平化提取错误消息
-def _extract_message_from_validation_errors(errors: list[dict]) -> str:
+def _extract_message_from_validation_errors(errors: Sequence[object]) -> str:
     if not errors:
         return VALIDATION_ERROR
     first = errors[0]
+    if not isinstance(first, Mapping):
+        return VALIDATION_ERROR
     msg = first.get("msg")
     if not isinstance(msg, str) or not msg:
         return VALIDATION_ERROR
