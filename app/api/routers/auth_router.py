@@ -61,7 +61,7 @@ async def login(
     response_model=SuccessResponse[TokenOut],
     status_code=status.HTTP_200_OK,
 )
-async def refresh_token(
+async def refresh_all_token(
     refresh_token: Annotated[str, Body(description="刷新令牌", embed=True)],
     auth_service: Annotated[AuthService, Depends(get_auth_service)],
 ) -> SuccessResponse[TokenOut]:
@@ -69,5 +69,5 @@ async def refresh_token(
     刷新令牌接口路由
     使用有效的 refresh_token 获取新的一对 access_token 和 refresh_token
     """
-    token_out = await auth_service.refresh_token(refresh_token)
+    token_out = await auth_service.refresh_all_token(refresh_token)
     return SuccessResponse[TokenOut](message=REFRESH_TOKEN_SUCCESS, data=token_out)

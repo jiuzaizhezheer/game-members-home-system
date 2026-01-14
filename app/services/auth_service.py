@@ -48,7 +48,7 @@ class AuthService:
 
             return TokenOut(access_token=access_token, refresh_token=refresh_token)
 
-    async def refresh_token(self, refresh_token: str) -> TokenOut:
+    async def refresh_all_token(self, refresh_token: str) -> TokenOut:
         """刷新令牌服务"""
         # 1. 验证 refresh_token 是否有效
         token_data = await verify_refresh_token(refresh_token)
