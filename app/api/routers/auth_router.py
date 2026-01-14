@@ -6,6 +6,7 @@ from app.api.deps import get_auth_service, get_captcha_service
 from app.common.constants import (
     INVALID_CAPTCHA,
     LOGIN_SUCCESS,
+    REFRESH_TOKEN_SUCCESS,
     REGISTER_SUCCESS,
 )
 from app.common.errors import ValidationError
@@ -52,3 +53,21 @@ async def login(
     """用户登录接口路由"""
     token_out = await auth_service.login(payload)
     return SuccessResponse[TokenOut](message=LOGIN_SUCCESS, data=token_out)
+
+
+@auth_router.post(
+    path="/refresh",
+    dependencies=[Depends(RateLimiter(counts=1, seconds=60))],
+    response_model=SuccessResponse[TokenOut],
+    status_code=status.HTTP_200_OK,
+)
+async def refresh_token(
+    refresh_token: Annotated[str, Body(description="刷新令牌", embed=True)],
+    auth_service: Annotated[AuthService, Depends(get_auth_service)],
+) -> SuccessResponse[TokenOut]:
+    """
+    刷新令牌接口路由
+    使用有效的 refresh_token 获取新的一对 access_token 和 refresh_token
+    """
+    token_out = await auth_service.refresh_token(refresh_token)
+    return SuccessResponse[TokenOut](message=REFRESH_TOKEN_SUCCESS, data=token_out)

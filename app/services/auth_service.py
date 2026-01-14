@@ -1,5 +1,6 @@
 from app.common.constants import (
     INVALID_CREDENTIALS,
+    REFRESH_TOKEN_INVALID,
     USERNAME_OR_EMAIL_EXISTS,
 )
 from app.common.errors import DuplicateResourceError, ValidationError
@@ -8,10 +9,12 @@ from app.entity import User
 from app.repo import users_repo
 from app.schemas import AuthLoginIn, AuthRegisterIn, TokenOut
 from app.utils import (
+    delete_refresh_token,
     get_access_token,
     get_refresh_token,
     hash_password,
     verify_password,
+    verify_refresh_token,
 )
 
 
@@ -44,3 +47,25 @@ class AuthService:
             refresh_token = await get_refresh_token(str(user.id), user.role)
 
             return TokenOut(access_token=access_token, refresh_token=refresh_token)
+
+    async def refresh_token(self, refresh_token: str) -> TokenOut:
+        """刷新令牌服务"""
+        # 1. 验证 refresh_token 是否有效
+        token_data = await verify_refresh_token(refresh_token)
+        if not token_data:
+            raise ValidationError(REFRESH_TOKEN_INVALID)
+
+        user_id = str(token_data.get("user_id"))
+        role = str(token_data.get("role"))
+
+        # 2. 生成新的 token
+        new_access_token = get_access_token(user_id, role)
+        new_refresh_token = await get_refresh_token(user_id, role)
+
+        # 3. 删除旧的 refresh_token (Refresh Token Rotation 策略)
+        await delete_refresh_token(refresh_token)
+
+        return TokenOut(
+            access_token=new_access_token,
+            refresh_token=new_refresh_token,
+        )
