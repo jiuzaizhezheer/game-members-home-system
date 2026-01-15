@@ -6,7 +6,7 @@ from app.utils import id_password_has_letter_and_digit
 
 
 class AuthRegisterIn(BaseModel):
-    username: str = Field(min_length=5, max_length=64, description="用户名")
+    username: str = Field(min_length=6, max_length=64, description="用户名")
     email: EmailStr = Field(description="邮箱")
     password: str = Field(
         min_length=6,
