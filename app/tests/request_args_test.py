@@ -1,7 +1,7 @@
 from pydantic import ValidationError
 
 from app.schemas import AuthRegisterIn
-from app.core.config import RoleEnum
+from app.common.enums import RoleEnum
 
 try:
     # 测试正确的情况
