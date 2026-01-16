@@ -1,6 +1,7 @@
 import asyncio
 
 import pytest
+from redis.exceptions import ConnectionError as RedisConnectionError
 
 from app.redis import get_redis
 
@@ -11,6 +12,12 @@ async def test_redis_session_manager():
     测试 Redis 上下文管理器
     """
     print("\nStarting Redis Session Test...")
+
+    try:
+        async with get_redis() as redis:
+            await redis.ping()
+    except RedisConnectionError:
+        pytest.skip("Redis 不可用，跳过依赖 Redis 的测试")
 
     # 1. 测试基本的 set/get
     async with get_redis() as redis:

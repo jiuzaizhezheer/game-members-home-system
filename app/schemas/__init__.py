@@ -1,5 +1,10 @@
-from .auth import AuthLoginIn, AuthRegisterIn
-from .common import AccessTokenOut, CaptchaOut, TokenOut
+from .auth import (
+    AccessTokenOut,
+    AuthLoginIn,
+    AuthRegisterIn,
+    CaptchaOut,
+    TokenOut,
+)
 from .response import ErrorResponse, SuccessResponse
 from .user import (
     UserChangePasswordIn,

@@ -1,7 +1,9 @@
 import asyncio
 
 import pytest
+from redis.exceptions import ConnectionError as RedisConnectionError
 
+from app.redis import get_redis
 from app.services import CaptchaService
 
 
@@ -9,6 +11,12 @@ from app.services import CaptchaService
 async def test_captcha_flow():
     print("开始测试验证码流程...")
     service = CaptchaService()
+
+    try:
+        async with get_redis() as redis:
+            await redis.ping()
+    except RedisConnectionError:
+        pytest.skip("Redis 不可用，跳过依赖 Redis 的测试")
 
     # 1. 生成验证码
     print("\n[Step 1] 生成验证码...")
@@ -23,10 +31,8 @@ async def test_captcha_flow():
 
     # 获取真实的 code (仅用于测试，实际业务中前端不知道)
     # 通过私有方法访问 Redis 获取 code，模拟用户识别图片
-    from app.redis import get_redis
-
     async with get_redis() as redis:
-        real_code = await redis.get(f"captcha:{captcha_id}")
+        real_code = await redis.get(f"{service.CAPTCHA_PREFIX}{captcha_id}")
     print(f"Real Code (from Redis): {real_code}")
 
     # 2. 验证错误的验证码
