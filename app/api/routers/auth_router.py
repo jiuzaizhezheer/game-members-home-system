@@ -2,7 +2,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Body, Cookie, Depends, HTTPException, Response, status
 
-from app.api.deps import get_auth_service
+from app.api.deps import get_auth_service, get_captcha_service
 from app.common.constants import (
     CAPTCHA_GENERATE_SUCCESS,
     INVALID_CAPTCHA,
@@ -19,8 +19,8 @@ from app.schemas import (
     CaptchaOut,
     SuccessResponse,
 )
-from app.services import AuthService
-from app.utils import RateLimiter, create_captcha, delete_refresh_token, verify_captcha
+from app.services import AuthService, CaptchaService
+from app.utils import RateLimiter, delete_refresh_token
 
 auth_router = APIRouter()
 REFRESH_PATH = "/api/auths/refresh"
@@ -32,13 +32,15 @@ REFRESH_PATH = "/api/auths/refresh"
     response_model=SuccessResponse[CaptchaOut],
     status_code=status.HTTP_200_OK,
 )
-async def generate_captcha() -> SuccessResponse[CaptchaOut]:
+async def generate_captcha(
+    captcha_service: Annotated[CaptchaService, Depends(get_captcha_service)],
+) -> SuccessResponse[CaptchaOut]:
     """生成图片验证码路由
     返回：
     - id: 验证码唯一标识（注册/登录时附带）
     - image: data:image/svg+xml;base64,... 直接用于 <img src="...">
     """
-    captcha = await create_captcha()
+    captcha = await captcha_service.create_captcha()
     return SuccessResponse[CaptchaOut](message=CAPTCHA_GENERATE_SUCCESS, data=captcha)
 
 
@@ -51,9 +53,10 @@ async def generate_captcha() -> SuccessResponse[CaptchaOut]:
 async def register(
     payload: Annotated[AuthRegisterIn, Body(description="注册请求体")],
     auth_service: Annotated[AuthService, Depends(get_auth_service)],
+    captcha_service: Annotated[CaptchaService, Depends(get_captcha_service)],
 ) -> SuccessResponse[None]:
     """用户注册接口路由"""
-    is_valid = await verify_captcha(
+    is_valid = await captcha_service.verify_captcha(
         payload.captcha_id,
         payload.captcha_code,
     )
