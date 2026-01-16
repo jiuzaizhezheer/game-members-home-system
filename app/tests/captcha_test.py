@@ -2,17 +2,17 @@ import asyncio
 
 import pytest
 
-from app.services import CaptchaService
+from app.utils import create_captcha, verify_captcha
 
 
 @pytest.mark.asyncio(loop_scope="session")
 async def test_captcha_flow():
     print("开始测试验证码流程...")
-    service = CaptchaService()
+    # service = CaptchaService() # Replaced with static Util
 
     # 1. 生成验证码
     print("\n[Step 1] 生成验证码...")
-    result = await service.create_captcha()
+    result = await create_captcha()
     captcha_id = result.id
     image_base64 = result.image
 
@@ -31,19 +31,19 @@ async def test_captcha_flow():
 
     # 2. 验证错误的验证码
     print("\n[Step 2] 验证错误的验证码...")
-    is_valid = await service.verify_captcha(captcha_id, "wrong_code")
+    is_valid = await verify_captcha(captcha_id, "wrong_code")
     print(f"Verify 'wrong_code': {is_valid}")
     assert is_valid is False
 
     # 3. 验证正确的验证码
     print("\n[Step 3] 验证正确的验证码...")
-    is_valid = await service.verify_captcha(captcha_id, real_code)
+    is_valid = await verify_captcha(captcha_id, real_code)
     print(f"Verify '{real_code}': {is_valid}")
     assert is_valid is True
 
     # 4. 验证防重放（再次使用同一个验证码）
     print("\n[Step 4] 验证防重放...")
-    is_valid = await service.verify_captcha(captcha_id, real_code)
+    is_valid = await verify_captcha(captcha_id, real_code)
     print(f"Verify again: {is_valid}")
     assert is_valid is False
 

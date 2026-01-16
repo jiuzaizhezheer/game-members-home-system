@@ -7,7 +7,7 @@ from sqlalchemy import text
 
 from app.database import engine
 from app.redis import get_redis, redis_pool
-from app.services import AuthService, CaptchaService, UserService
+from app.services import AuthService, UserService
 
 
 @asynccontextmanager
@@ -17,7 +17,6 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         # 单例模式
         app.state.user_service = UserService()
         app.state.auth_service = AuthService()
-        app.state.captcha_service = CaptchaService()
         # 初始化pgsql
         async with engine.begin() as conn:
             await conn.execute(text("SELECT 1"))
