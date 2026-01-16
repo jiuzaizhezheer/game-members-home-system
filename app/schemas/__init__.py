@@ -1,5 +1,5 @@
 from .auth import AuthLoginIn, AuthRegisterIn
-from .common import CaptchaOut, TokenOut
+from .common import AccessTokenOut, CaptchaOut, TokenOut
 from .response import ErrorResponse, SuccessResponse
 from .user import (
     UserChangePasswordIn,
@@ -7,6 +7,7 @@ from .user import (
 )
 
 __all__ = [
+    "AccessTokenOut",
     "CaptchaOut",
     "TokenOut",
     "ErrorResponse",

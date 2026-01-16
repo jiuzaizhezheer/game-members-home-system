@@ -1,6 +1,7 @@
 from pydantic import ValidationError
 
 from app.schemas import AuthRegisterIn
+from app.core.config import RoleEnum
 
 try:
     # 测试正确的情况
@@ -9,7 +10,7 @@ try:
         username="validuser",
         email="test@example.com",
         password="password123",
-        role="member",
+        role=RoleEnum.member,
         captcha_id="a" * 36,
         captcha_code="123456",
     )
@@ -22,7 +23,7 @@ try:
             username="validuser",
             email="test@example.com",
             password="password123",
-            role="member",
+            role=RoleEnum.member,
             captcha_id="a" * 37,  # 长度太长
             captcha_code="123456",
         )
@@ -36,7 +37,7 @@ try:
             username="validuser",
             email="test@example.com",
             password="password123",
-            role="member",
+            role=RoleEnum.member,
             captcha_id="a" * 36,
             captcha_code="1234567",  # 长度太长
         )

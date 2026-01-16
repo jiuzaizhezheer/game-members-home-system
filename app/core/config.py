@@ -9,6 +9,7 @@ load_dotenv()
 PROJECT_NAME: str = os.getenv("PROJECT_NAME", "Game Members Home System")
 VERSION: str = os.getenv("VERSION", "1.0.0")
 DEBUG: bool = os.getenv("DEBUG", "true").lower() == "true"
+ENV: str = os.getenv("ENV", "local")
 
 # Database
 POSTGRES_USER: str = os.getenv("POSTGRES_USER", "root")

@@ -9,3 +9,7 @@ class CaptchaOut(BaseModel):
 class TokenOut(BaseModel):
     access_token: str = Field(description="访问令牌")
     refresh_token: str = Field(description="刷新令牌")
+
+
+class AccessTokenOut(BaseModel):
+    access_token: str = Field(description="访问令牌")
