@@ -51,6 +51,7 @@ class Product(Base, TimestampMixin):
     sales_count: Mapped[int] = mapped_column(
         Integer, nullable=False, server_default=text("0"), comment="销售数量"
     )
+    image_url: Mapped[str | None] = mapped_column(String(512), comment="商品图片URL")
     __table_args__ = (
         CheckConstraint("price >= 0", name="chk_products_price_nonneg"),
         CheckConstraint("stock >= 0", name="chk_products_stock_nonneg"),

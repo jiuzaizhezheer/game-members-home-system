@@ -1,6 +1,6 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Body, Cookie, Depends, HTTPException, Response, status
+from fastapi import APIRouter, Body, Cookie, Depends, Response, status
 
 from app.api.deps import get_auth_service, get_captcha_service
 from app.common.constants import (
@@ -28,7 +28,7 @@ REFRESH_PATH = "/api/auths/refresh"
 
 @auth_router.get(
     path="/captcha",  # TODO: 后续可能修改为向邮箱发送验证码
-    dependencies=[Depends(RateLimiter(counts=2, seconds=30))],
+    dependencies=[Depends(RateLimiter(counts=10, seconds=30))],
     response_model=SuccessResponse[CaptchaOut],
     status_code=status.HTTP_200_OK,
 )
@@ -61,10 +61,7 @@ async def register(
         payload.captcha_code,
     )
     if not is_valid:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=INVALID_CAPTCHA,
-        )
+        raise ValidationError(detail=INVALID_CAPTCHA)
 
     await auth_service.register(payload)
     return SuccessResponse[None](message=REGISTER_SUCCESS)
@@ -83,14 +80,12 @@ async def login(
 ) -> SuccessResponse[AccessTokenOut]:
     """用户登录接口路由"""
     token_out = await auth_service.login(payload)
-
     # 设置 HttpOnly Cookie
     response.set_cookie(
         key="refresh_token",
         value=token_out.refresh_token,
         httponly=True,
-        secure=ENV
-        == "production",  # TODO 开发环境如果不使用 HTTPS 可以先注释，生产环境必须开启为true
+        secure=ENV == "production",  # TODO 根据环境决定是否开启
         samesite="lax",
         max_age=REFRESH_TOKEN_EXPIRE_DAYS * 24 * 60 * 60,  # 7 天
         path=REFRESH_PATH,
@@ -117,13 +112,7 @@ async def refresh_all_token(
     刷新令牌接口路由
     从 Cookie 中获取 refresh_token，返回新的 access_token
     """
-    try:
-        token_out = await auth_service.refresh_all_token(refresh_token)
-    except ValidationError as e:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail=str(e),
-        ) from e
+    token_out = await auth_service.refresh_all_token(refresh_token)
     # 刷新 Cookie
     response.set_cookie(
         key="refresh_token",
@@ -156,9 +145,9 @@ async def logout(
 
     response.delete_cookie(
         key="refresh_token",
-        path=REFRESH_PATH,
         httponly=True,
         secure=ENV == "production",
         samesite="lax",
+        path=REFRESH_PATH,
     )
     return SuccessResponse[None](message="登出成功")

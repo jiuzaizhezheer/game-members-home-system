@@ -27,7 +27,7 @@ class Merchant(Base, TimestampMixin):
     shop_name: Mapped[str] = mapped_column(
         String(128), nullable=False, unique=True, comment="店铺名称"
     )
-    contact_phone: Mapped[str | None] = mapped_column(String(32), comment="联系电话")
+    contact_phone: Mapped[str | None] = mapped_column(String(11), comment="联系电话")
     shop_desc: Mapped[str | None] = mapped_column(Text, comment="店铺描述")
 
     def __repr__(self) -> str:

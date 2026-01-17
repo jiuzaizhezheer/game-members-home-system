@@ -3,10 +3,11 @@ from app.common.constants import (
     REFRESH_TOKEN_INVALID,
     USERNAME_OR_EMAIL_EXISTS,
 )
-from app.common.errors import DuplicateResourceError, ValidationError
+from app.common.enums import RoleEnum
+from app.common.errors import DuplicateResourceError, UnauthorizedError
 from app.database import get_db
-from app.entity import User
-from app.repo import users_repo
+from app.entity import Merchant, User
+from app.repo import merchants_repo, users_repo
 from app.schemas import AuthLoginIn, AuthRegisterIn, TokenOut
 from app.utils import (
     delete_refresh_token,
@@ -33,6 +34,10 @@ class AuthService:
                 password_hash=hash_password(payload.password),
             )
             await users_repo.create(session, user)
+            if payload.role == RoleEnum.MERCHANT:
+                shop_name = f"{payload.username}的店铺"
+                merchant = Merchant(user_id=user.id, shop_name=shop_name)
+                await merchants_repo.create(session, merchant)
 
     async def login(self, payload: AuthLoginIn) -> TokenOut:
         """用户登录服务"""
@@ -41,7 +46,7 @@ class AuthService:
             user = await users_repo.get_by_email(session, payload.email, payload.role)
 
             if not user or not verify_password(payload.password, user.password_hash):
-                raise ValidationError(INVALID_CREDENTIALS)
+                raise UnauthorizedError(INVALID_CREDENTIALS)
             # 生成access_token 和 refresh_token
             access_token = get_access_token(str(user.id), user.role)
             refresh_token = await get_refresh_token(str(user.id), user.role)
@@ -53,7 +58,7 @@ class AuthService:
         # 1. 验证 refresh_token 是否有效
         token_data = await verify_refresh_token(refresh_token)
         if not token_data:
-            raise ValidationError(REFRESH_TOKEN_INVALID)
+            raise UnauthorizedError(REFRESH_TOKEN_INVALID)
 
         user_id = str(token_data.get("user_id"))
         role = str(token_data.get("role"))
