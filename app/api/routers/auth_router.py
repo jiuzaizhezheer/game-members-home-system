@@ -28,7 +28,7 @@ REFRESH_PATH = "/api/auths/refresh"
 
 @auth_router.get(
     path="/captcha",  # TODO: 后续可能修改为向邮箱发送验证码
-    dependencies=[Depends(RateLimiter(counts=2, seconds=30))],
+    dependencies=[Depends(RateLimiter(counts=10, seconds=30))],
     response_model=SuccessResponse[CaptchaOut],
     status_code=status.HTTP_200_OK,
 )
@@ -82,15 +82,20 @@ async def login(
     auth_service: Annotated[AuthService, Depends(get_auth_service)],
 ) -> SuccessResponse[AccessTokenOut]:
     """用户登录接口路由"""
-    token_out = await auth_service.login(payload)
+    try:
+        token_out = await auth_service.login(payload)
+    except ValidationError as e:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=str(e),
+        ) from e
 
     # 设置 HttpOnly Cookie
     response.set_cookie(
         key="refresh_token",
         value=token_out.refresh_token,
         httponly=True,
-        secure=ENV
-        == "production",  # TODO 开发环境如果不使用 HTTPS 可以先注释，生产环境必须开启为true
+        secure=ENV == "production",  # TODO 根据环境决定是否开启
         samesite="lax",
         max_age=REFRESH_TOKEN_EXPIRE_DAYS * 24 * 60 * 60,  # 7 天
         path=REFRESH_PATH,
@@ -156,9 +161,9 @@ async def logout(
 
     response.delete_cookie(
         key="refresh_token",
-        path=REFRESH_PATH,
         httponly=True,
         secure=ENV == "production",
         samesite="lax",
+        path=REFRESH_PATH,
     )
     return SuccessResponse[None](message="登出成功")

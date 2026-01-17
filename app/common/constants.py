@@ -16,3 +16,10 @@ CAPTCHA_GENERATE_SUCCESS = "验证码生成成功"
 REFRESH_TOKEN_INVALID = "刷新令牌无效或已过期"
 TOO_MANY_REQUESTS = "请求过于频繁，请稍后再试"
 REFRESH_TOKEN_SUCCESS = "刷新令牌成功"
+ACCESS_TOKEN_EXPIRED = "访问令牌已过期"
+ACCESS_TOKEN_INVALID = "访问令牌无效"
+# WWW-Authenticate headers
+WWW_AUTH_EXPIRED = (
+    'Bearer error="invalid_token", error_description="The access token expired"'
+)
+WWW_AUTH_INVALID = 'Bearer error="invalid_token", error_description="The access token is invalid or malformed"'
