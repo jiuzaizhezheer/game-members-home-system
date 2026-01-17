@@ -5,6 +5,12 @@ from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jose import ExpiredSignatureError, JWTError
 
+from app.common.constants import (
+    ACCESS_TOKEN_EXPIRED,
+    ACCESS_TOKEN_INVALID,
+    WWW_AUTH_EXPIRED,
+    WWW_AUTH_INVALID,
+)
 from app.utils import decode_access_token
 
 logger = logging.getLogger("uvicorn")
@@ -29,16 +35,14 @@ class RoleChecker:
         except ExpiredSignatureError:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Token expired",
-                headers={
-                    "WWW-Authenticate": 'Bearer error="invalid_token", error_description="The token is expired"'
-                },
+                detail=ACCESS_TOKEN_EXPIRED,
+                headers={"WWW-Authenticate": WWW_AUTH_EXPIRED},
             ) from None
         except JWTError:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Could not validate credentials",
-                headers={"WWW-Authenticate": "Bearer"},
+                detail=ACCESS_TOKEN_INVALID,
+                headers={"WWW-Authenticate": WWW_AUTH_INVALID},
             ) from None
 
         role = payload.get("role")
