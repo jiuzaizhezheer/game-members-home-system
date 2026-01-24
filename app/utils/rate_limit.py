@@ -1,6 +1,7 @@
-from fastapi import HTTPException, Request, status
+from fastapi import Request
 
 from app.common.constants import TOO_MANY_REQUESTS
+from app.common.errors import TooManyRequestsError
 from app.redis import get_redis
 
 
@@ -47,7 +48,4 @@ class RateLimiter:
             count = results[0]
 
             if count > self.counts:
-                raise HTTPException(
-                    status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-                    detail=TOO_MANY_REQUESTS,
-                )
+                raise TooManyRequestsError(detail=TOO_MANY_REQUESTS)

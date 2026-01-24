@@ -1,6 +1,9 @@
 from fastapi import Request
 
 from app.services import AuthService, CaptchaService, UserService
+from app.services.category_service import CategoryService
+from app.services.merchant_service import MerchantService
+from app.services.product_service import ProductService
 
 
 def get_user_service(request: Request) -> UserService:
@@ -13,6 +16,18 @@ def get_auth_service(request: Request) -> AuthService:
 
 def get_captcha_service(request: Request) -> CaptchaService:
     return request.app.state.captcha_service
+
+
+def get_merchant_service(request: Request) -> MerchantService:
+    return request.app.state.merchant_service
+
+
+def get_product_service(request: Request) -> ProductService:
+    return request.app.state.product_service
+
+
+def get_category_service(request: Request) -> CategoryService:
+    return request.app.state.category_service
 
 
 def get_current_user_id(request: Request) -> str:

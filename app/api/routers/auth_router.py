@@ -1,6 +1,6 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Body, Cookie, Depends, HTTPException, Response, status
+from fastapi import APIRouter, Body, Cookie, Depends, Response, status
 
 from app.api.deps import get_auth_service, get_captcha_service
 from app.common.constants import (
@@ -61,10 +61,7 @@ async def register(
         payload.captcha_code,
     )
     if not is_valid:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=INVALID_CAPTCHA,
-        )
+        raise ValidationError(detail=INVALID_CAPTCHA)
 
     await auth_service.register(payload)
     return SuccessResponse[None](message=REGISTER_SUCCESS)
@@ -82,14 +79,7 @@ async def login(
     auth_service: Annotated[AuthService, Depends(get_auth_service)],
 ) -> SuccessResponse[AccessTokenOut]:
     """用户登录接口路由"""
-    try:
-        token_out = await auth_service.login(payload)
-    except ValidationError as e:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail=str(e),
-        ) from e
-
+    token_out = await auth_service.login(payload)
     # 设置 HttpOnly Cookie
     response.set_cookie(
         key="refresh_token",
@@ -122,13 +112,7 @@ async def refresh_all_token(
     刷新令牌接口路由
     从 Cookie 中获取 refresh_token，返回新的 access_token
     """
-    try:
-        token_out = await auth_service.refresh_all_token(refresh_token)
-    except ValidationError as e:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail=str(e),
-        ) from e
+    token_out = await auth_service.refresh_all_token(refresh_token)
     # 刷新 Cookie
     response.set_cookie(
         key="refresh_token",

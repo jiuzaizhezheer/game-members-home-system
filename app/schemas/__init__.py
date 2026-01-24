@@ -5,6 +5,18 @@ from .auth import (
     CaptchaOut,
     TokenOut,
 )
+from .category import CategoryOut
+from .merchant import (
+    MerchantOut,
+    MerchantUpdateIn,
+)
+from .product import (
+    ProductCreateIn,
+    ProductListOut,
+    ProductOut,
+    ProductStatusIn,
+    ProductUpdateIn,
+)
 from .response import ErrorResponse, SuccessResponse
 from .user import (
     UserChangePasswordIn,
@@ -13,12 +25,20 @@ from .user import (
 
 __all__ = [
     "AccessTokenOut",
-    "CaptchaOut",
-    "TokenOut",
-    "ErrorResponse",
-    "SuccessResponse",
     "AuthLoginIn",
     "AuthRegisterIn",
+    "CaptchaOut",
+    "CategoryOut",
+    "ErrorResponse",
+    "MerchantOut",
+    "MerchantUpdateIn",
+    "ProductCreateIn",
+    "ProductListOut",
+    "ProductOut",
+    "ProductStatusIn",
+    "ProductUpdateIn",
+    "SuccessResponse",
+    "TokenOut",
     "UserChangePasswordIn",
     "UserOut",
 ]

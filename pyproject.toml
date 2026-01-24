@@ -35,6 +35,7 @@ dev = [
     "pytest>=7.4.0",
     "pytest-asyncio>=0.25.0",
     "types-python-jose>=3.5.0.20250531",
+    "httpx>=0.28.1",
 ]
 
 [build-system]

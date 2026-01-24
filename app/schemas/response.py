@@ -13,8 +13,9 @@ class SuccessResponse(BaseModel, Generic[T]):
 
 class ErrorResponse:
     @staticmethod
-    def build(status_code: int, message: str) -> JSONResponse:
+    def build(
+        status_code: int, message: str, headers: dict[str, str] | None = None
+    ) -> JSONResponse:
         return JSONResponse(
-            status_code=status_code,
-            content={"message": message},
+            status_code=status_code, content={"message": message}, headers=headers
         )

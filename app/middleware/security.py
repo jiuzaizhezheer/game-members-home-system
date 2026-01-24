@@ -1,16 +1,18 @@
 import logging
 from typing import Annotated
 
-from fastapi import Depends, HTTPException, Request, status
+from fastapi import Depends, Request
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jose import ExpiredSignatureError, JWTError
 
 from app.common.constants import (
     ACCESS_TOKEN_EXPIRED,
     ACCESS_TOKEN_INVALID,
+    PERMISSION_DENIED,
     WWW_AUTH_EXPIRED,
     WWW_AUTH_INVALID,
 )
+from app.common.errors import PermissionDeniedError, UnauthorizedError
 from app.utils import decode_access_token
 
 logger = logging.getLogger("uvicorn")
@@ -33,14 +35,12 @@ class RoleChecker:
         try:
             payload = decode_access_token(token)
         except ExpiredSignatureError:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
+            raise UnauthorizedError(
                 detail=ACCESS_TOKEN_EXPIRED,
                 headers={"WWW-Authenticate": WWW_AUTH_EXPIRED},
             ) from None
         except JWTError:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
+            raise UnauthorizedError(
                 detail=ACCESS_TOKEN_INVALID,
                 headers={"WWW-Authenticate": WWW_AUTH_INVALID},
             ) from None
@@ -51,9 +51,8 @@ class RoleChecker:
         logger.info(f"user_id: {user_id}")
 
         if self.allowed_roles and role not in self.allowed_roles:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Operation not permitted",
+            raise PermissionDeniedError(
+                detail=PERMISSION_DENIED,
             )
 
         # 将 user_id 存储到 request.state 中，以便后续使用

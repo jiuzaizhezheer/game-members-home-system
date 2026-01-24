@@ -24,6 +24,7 @@ async def exists_by_username_or_email_in_role(
 async def create(session: AsyncSession, user: User) -> None:
     """创建用户"""
     session.add(user)
+    await session.flush()
 
 
 async def get_by_username(

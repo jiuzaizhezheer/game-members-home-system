@@ -5,9 +5,6 @@
 SET client_encoding = 'UTF8';
 SET TIME ZONE 'UTC';
 
--- 扩展：用于生成 UUID
-CREATE EXTENSION IF NOT EXISTS pgcrypto;
-
 -- =========================
 -- 用户实体（会员、商家、管理员）
 -- =========================
@@ -32,7 +29,7 @@ CREATE TABLE IF NOT EXISTS merchants (
     id              uuid PRIMARY KEY,
     user_id         uuid NOT NULL UNIQUE, -- 逻辑外键: users.id
     shop_name       varchar(128) NOT NULL UNIQUE,
-    contact_phone   varchar(32),
+    contact_phone   varchar(11),
     shop_desc       text,
     created_at      timestamptz NOT NULL DEFAULT now(),
     updated_at      timestamptz NOT NULL DEFAULT now()
@@ -82,6 +79,7 @@ CREATE TABLE IF NOT EXISTS products (
     price           numeric(12,2) NOT NULL CHECK (price >= 0),
     stock           integer NOT NULL DEFAULT 0 CHECK (stock >= 0),
     status          varchar(8) NOT NULL DEFAULT 'on',
+    image_url       varchar(512),
     popularity_score integer NOT NULL DEFAULT 0,
     views_count     integer NOT NULL DEFAULT 0,
     sales_count     integer NOT NULL DEFAULT 0,
