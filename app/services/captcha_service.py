@@ -3,7 +3,7 @@ import random
 import string
 import uuid
 
-from app.redis import get_redis
+from app.database.redis import get_redis
 from app.schemas.auth import CaptchaOut
 
 

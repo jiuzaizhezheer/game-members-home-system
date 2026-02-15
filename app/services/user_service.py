@@ -4,27 +4,48 @@ from app.common.constants import (
     USER_NOT_FOUND,
 )
 from app.common.errors import NotFoundError, ValidationError
-from app.database import get_db
-from app.entity import User
+from app.database.pgsql import get_pg
+from app.entity.pgsql import User
 from app.repo import users_repo
-from app.schemas import UserChangePasswordIn
+from app.schemas import UserChangePasswordIn, UserOut, UserProfileUpdateIn
 from app.utils import hash_password, verify_password
 
 
 class UserService:
     async def get_by_id(self, user_id: str) -> User:
         """根据ID获取用户"""
-        async with get_db() as session:
+        async with get_pg() as session:
             user = await users_repo.get_by_id(session, user_id)
             if not user:
                 raise NotFoundError(USER_NOT_FOUND)
             return user
 
+    async def get_profile(self, user_id: str) -> UserOut:
+        """获取用户个人资料"""
+        user = await self.get_by_id(user_id)
+        return UserOut.model_validate(user)
+
+    async def update_profile(
+        self, user_id: str, payload: UserProfileUpdateIn
+    ) -> UserOut:
+        """更新用户个人资料"""
+        async with get_pg() as session:
+            user = await users_repo.get_by_id(session, user_id)
+            if not user:
+                raise NotFoundError(USER_NOT_FOUND)
+
+            update_data = payload.model_dump(exclude_unset=True)
+            for field, value in update_data.items():
+                setattr(user, field, value)
+
+            await session.flush()
+            return UserOut.model_validate(user)
+
     async def change_password(
         self, user_id: str, payload: UserChangePasswordIn
     ) -> None:
         """已登录情况下通过旧密码修改用户密码服务"""
-        async with get_db() as session:
+        async with get_pg() as session:
             user = await users_repo.get_by_id(session, user_id)
             if not user:
                 raise NotFoundError(USER_NOT_FOUND)

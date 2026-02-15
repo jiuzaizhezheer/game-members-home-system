@@ -9,6 +9,7 @@ from app.api.role import require_merchant
 from app.common.constants import (
     GET_SUCCESS,
     PRODUCT_CREATE_SUCCESS,
+    PRODUCT_DELETE_SUCCESS,
     PRODUCT_STATUS_UPDATE_SUCCESS,
     PRODUCT_UPDATE_SUCCESS,
 )
@@ -17,22 +18,65 @@ from app.schemas.product import (
     ProductCreateIn,
     ProductListOut,
     ProductOut,
+    ProductPublicListOut,
+    ProductPublicOut,
     ProductStatusIn,
     ProductUpdateIn,
 )
-from app.services.product_service import ProductService
+from app.services import ProductService
 
 product_router = APIRouter()
 
 
-# ============ 商家操作（需要商家权限） ============
+# ============ 公开接口 ============
 @product_router.get(
     path="/",
+    response_model=SuccessResponse[ProductPublicListOut],
+    status_code=status.HTTP_200_OK,
+)
+async def get_public_products(
+    product_service: Annotated[ProductService, Depends(get_product_service)],
+    page: Annotated[int, Query(ge=1, description="页码")] = 1,
+    page_size: Annotated[int, Query(ge=1, le=100, description="每页数量")] = 20,
+    keyword: Annotated[str | None, Query(description="搜索关键字")] = None,
+    category_id: Annotated[str | None, Query(description="分类ID")] = None,
+    sort_by: Annotated[
+        Literal["price_asc", "price_desc", "newest"], Query(description="排序方式")
+    ] = "newest",
+) -> SuccessResponse[ProductPublicListOut]:
+    """获取公开商品列表"""
+    products = await product_service.get_public_products(
+        page=page,
+        page_size=page_size,
+        keyword=keyword,
+        category_id=category_id,
+        sort_by=sort_by,
+    )
+    return SuccessResponse[ProductPublicListOut](message=GET_SUCCESS, data=products)
+
+
+@product_router.get(
+    path="/{product_id}",
+    response_model=SuccessResponse[ProductPublicOut],
+    status_code=status.HTTP_200_OK,
+)
+async def get_public_product(
+    product_id: Annotated[str, Path(description="商品ID")],
+    product_service: Annotated[ProductService, Depends(get_product_service)],
+) -> SuccessResponse[ProductPublicOut]:
+    """获取公开商品详情"""
+    product = await product_service.get_product_public(product_id)
+    return SuccessResponse[ProductPublicOut](message=GET_SUCCESS, data=product)
+
+
+# ============ 商家操作（需要商家权限） ============
+@product_router.get(
+    path="/my/list",
     dependencies=[require_merchant],
     response_model=SuccessResponse[ProductListOut],
     status_code=status.HTTP_200_OK,
 )
-async def get_products(
+async def get_my_products(
     user_id: Annotated[str, Depends(get_current_user_id)],
     product_service: Annotated[ProductService, Depends(get_product_service)],
     page: Annotated[int, Query(ge=1, description="页码")] = 1,
@@ -54,12 +98,12 @@ async def get_products(
 
 
 @product_router.get(
-    path="/{product_id}",
+    path="/my/{product_id}",
     dependencies=[require_merchant],
     response_model=SuccessResponse[ProductOut],
     status_code=status.HTTP_200_OK,
 )
-async def get_product(
+async def get_my_product(
     user_id: Annotated[str, Depends(get_current_user_id)],
     product_id: Annotated[str, Path(description="商品ID")],
     product_service: Annotated[ProductService, Depends(get_product_service)],
@@ -119,3 +163,19 @@ async def update_product_status(
     return SuccessResponse[ProductOut](
         message=PRODUCT_STATUS_UPDATE_SUCCESS, data=product
     )
+
+
+@product_router.delete(
+    path="/{product_id}",
+    dependencies=[require_merchant],
+    response_model=SuccessResponse[None],
+    status_code=status.HTTP_200_OK,
+)
+async def delete_product(
+    user_id: Annotated[str, Depends(get_current_user_id)],
+    product_id: Annotated[str, Path(description="商品ID")],
+    product_service: Annotated[ProductService, Depends(get_product_service)],
+) -> SuccessResponse[None]:
+    """删除商品"""
+    await product_service.delete_product(user_id, product_id)
+    return SuccessResponse[None](message=PRODUCT_DELETE_SUCCESS)

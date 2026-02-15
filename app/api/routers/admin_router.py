@@ -2,25 +2,27 @@
 管理员路由
 """
 
-from fastapi import APIRouter, Depends, Request
+from typing import Annotated
+
+from fastapi import APIRouter, Depends
 
 from app.api.deps import get_current_user_id, get_user_service
 from app.api.role import require_admin
 from app.common.constants import GET_SUCCESS
 from app.schemas import SuccessResponse
+from app.services import UserService
 
 router = APIRouter(dependencies=[require_admin])
 
 
 @router.get("/profile")
 async def get_admin_profile(
-    request: Request,
-    user_id: str = Depends(get_current_user_id),
+    user_id: Annotated[str, Depends(get_current_user_id)],
+    user_service: Annotated[UserService, Depends(get_user_service)],
 ):
     """
     获取当前管理员信息
     """
-    user_service = get_user_service(request)
     user = await user_service.get_by_id(user_id)
     return SuccessResponse(
         message=GET_SUCCESS,
@@ -36,7 +38,7 @@ async def get_admin_profile(
 
 
 @router.get("/dashboard")
-async def get_dashboard_stats(request: Request):
+async def get_dashboard_stats():
     """
     获取管理后台仪表盘概览数据（占位）
     """

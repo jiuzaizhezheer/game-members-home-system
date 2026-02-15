@@ -1,3 +1,4 @@
+import uuid
 from datetime import datetime
 
 from pydantic import BaseModel, EmailStr, Field, field_validator, model_validator
@@ -33,8 +34,17 @@ class UserChangePasswordIn(BaseModel):
 
 
 class UserOut(BaseModel):
-    id: str = Field(description="用户ID")
+    id: uuid.UUID = Field(description="用户ID")
     username: str = Field(description="用户名")
     email: EmailStr = Field(description="邮箱")
     role: RoleEnum = Field(description="角色")
+    avatar_url: str | None = Field(description="头像地址")
     created_at: datetime = Field(description="创建时间")
+
+    model_config = {"from_attributes": True}
+
+
+class UserProfileUpdateIn(BaseModel):
+    username: str | None = Field(default=None, description="用户名")
+    avatar_url: str | None = Field(default=None, description="头像地址")
+    email: EmailStr | None = Field(default=None, description="邮箱")

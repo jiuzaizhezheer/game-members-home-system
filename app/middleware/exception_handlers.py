@@ -8,7 +8,7 @@ from app.common.constants import (
     UNKNOWN_ERROR,
     VALIDATION_ERROR,
 )
-from app.common.errors import BusinessException
+from app.common.errors import BusinessError
 from app.schemas import ErrorResponse
 
 logger = logging.getLogger("uvicorn")
@@ -38,7 +38,7 @@ def register_exception_handlers(app: FastAPI) -> None:
         request_validation_exception_handler,  # type: ignore
     )
     app.add_exception_handler(
-        BusinessException,
+        BusinessError,
         business_exception_handler,  # type: ignore
     )
     app.add_exception_handler(Exception, unknown_exception_handler)
@@ -54,7 +54,7 @@ async def unknown_exception_handler(request: Request, exc: Exception):
 
 
 # 基础业务异常处理程序
-async def business_exception_handler(request: Request, exc: BusinessException):
+async def business_exception_handler(request: Request, exc: BusinessError):
     logger.exception(exc.detail, exc_info=exc)
     return ErrorResponse.build(
         status_code=exc.status_code,

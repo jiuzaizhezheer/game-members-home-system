@@ -3,7 +3,7 @@
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.entity import Category
+from app.entity.pgsql import Category
 
 
 async def get_all(session: AsyncSession) -> list[Category]:

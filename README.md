@@ -67,5 +67,11 @@ game-members-home-system/
 └── README.md                               # 项目说明文档
 ```
 
-
+### 启动 fastapi
 uvicorn app.main:app --host 127.0.0.1 --port 8000
+
+### 启动 celery worker
+pdm run celery -A app.tasks.celery_worker worker --loglevel=info -P solo
+
+### 启动 celery beat
+pdm run celery -A app.tasks.celery_worker beat --loglevel=info

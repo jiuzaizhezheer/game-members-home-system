@@ -1,7 +1,7 @@
 from sqlalchemy import exists, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.entity import User
+from app.entity.pgsql import User
 
 
 async def exists_by_username_or_email_in_role(

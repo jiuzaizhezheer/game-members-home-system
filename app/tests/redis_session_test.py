@@ -3,7 +3,7 @@ import asyncio
 import pytest
 from redis.exceptions import ConnectionError as RedisConnectionError
 
-from app.redis import get_redis
+from app.database.redis import get_redis
 
 
 @pytest.mark.asyncio(loop_scope="session")

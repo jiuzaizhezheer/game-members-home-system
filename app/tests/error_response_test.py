@@ -4,7 +4,7 @@ import pytest
 from fastapi.exceptions import RequestValidationError
 from starlette.requests import Request
 
-from app.common.errors import BusinessException
+from app.common.errors import BusinessError
 from app.middleware.exception_handlers import (
     business_exception_handler,
     request_validation_exception_handler,
@@ -14,7 +14,7 @@ from app.middleware.exception_handlers import (
 @pytest.mark.asyncio
 async def test_business_exception_returns_message_and_data():
     request = Request({"type": "http", "method": "GET", "path": "/"})
-    exc = BusinessException(status_code=401, detail="Token expired")
+    exc = BusinessError(status_code=401, detail="Token expired")
     res = await business_exception_handler(request, exc)
 
     assert res.status_code == 401
@@ -24,9 +24,9 @@ async def test_business_exception_returns_message_and_data():
 @pytest.mark.asyncio
 async def test_business_exception_detail_dict_message_is_used():
     request = Request({"type": "http", "method": "GET", "path": "/"})
-    # BusinessException detail 只能是 str，但为了测试兼容性或未来扩展，这里保留逻辑，
-    # 实际上 BusinessException 的 detail 类型提示是 str
-    exc = BusinessException(status_code=400, detail="bad request")
+    # BusinessError detail 只能是 str，但为了测试兼容性或未来扩展，这里保留逻辑，
+    # 实际上 BusinessError 的 detail 类型提示是 str
+    exc = BusinessError(status_code=400, detail="bad request")
     res = await business_exception_handler(request, exc)
 
     assert res.status_code == 400

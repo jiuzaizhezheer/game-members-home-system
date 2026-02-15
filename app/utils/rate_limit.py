@@ -2,7 +2,7 @@ from fastapi import Request
 
 from app.common.constants import TOO_MANY_REQUESTS
 from app.common.errors import TooManyRequestsError
-from app.redis import get_redis
+from app.database.redis import get_redis
 
 
 class RateLimiter:

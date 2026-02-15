@@ -1,33 +1,63 @@
 from fastapi import Request
 
-from app.services import AuthService, CaptchaService, UserService
-from app.services.category_service import CategoryService
-from app.services.merchant_service import MerchantService
-from app.services.product_service import ProductService
+from app.services import (
+    AddressService,
+    AuthService,
+    CaptchaService,
+    CartService,
+    CategoryService,
+    MerchantService,
+    OrderService,
+    ProductService,
+    UserService,
+)
+
+# 单例模式
+_user_service = UserService()
+_auth_service = AuthService()
+_captcha_service = CaptchaService()
+_merchant_service = MerchantService()
+_product_service = ProductService()
+_category_service = CategoryService()
+_cart_service = CartService()
+_address_service = AddressService()
+_order_service = OrderService()
 
 
-def get_user_service(request: Request) -> UserService:
-    return request.app.state.user_service
+def get_user_service() -> UserService:
+    return _user_service
 
 
-def get_auth_service(request: Request) -> AuthService:
-    return request.app.state.auth_service
+def get_auth_service() -> AuthService:
+    return _auth_service
 
 
-def get_captcha_service(request: Request) -> CaptchaService:
-    return request.app.state.captcha_service
+def get_captcha_service() -> CaptchaService:
+    return _captcha_service
 
 
-def get_merchant_service(request: Request) -> MerchantService:
-    return request.app.state.merchant_service
+def get_merchant_service() -> MerchantService:
+    return _merchant_service
 
 
-def get_product_service(request: Request) -> ProductService:
-    return request.app.state.product_service
+def get_product_service() -> ProductService:
+    return _product_service
 
 
-def get_category_service(request: Request) -> CategoryService:
-    return request.app.state.category_service
+def get_category_service() -> CategoryService:
+    return _category_service
+
+
+def get_address_service() -> AddressService:
+    return _address_service
+
+
+def get_order_service() -> OrderService:
+    return _order_service
+
+
+def get_cart_service() -> CartService:
+    return _cart_service
 
 
 def get_current_user_id(request: Request) -> str:

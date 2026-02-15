@@ -6,7 +6,7 @@ from sqlalchemy import delete as sa_delete
 from sqlalchemy import exists, func, insert, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.entity import Product, ProductCategory
+from app.entity.pgsql import Product, ProductCategory
 
 
 async def get_by_id(session: AsyncSession, product_id: str) -> Product | None:
@@ -62,6 +62,56 @@ async def get_list_by_merchant(
     return products, total
 
 
+async def get_public_list(
+    session: AsyncSession,
+    *,
+    page: int = 1,
+    page_size: int = 20,
+    keyword: str | None = None,
+    category_id: str | None = None,
+    sort_by: str = "newest",
+) -> tuple[list[Product], int]:
+    """获取公开商品列表（仅上架商品）"""
+    base_stmt = select(Product).where(Product.status == "on")
+
+    if keyword:
+        # 支持名称或描述搜索
+        base_stmt = base_stmt.where(
+            (Product.name.ilike(f"%{keyword}%"))
+            | (Product.description.ilike(f"%{keyword}%"))
+        )
+
+    if category_id:
+        # 通过子查询筛选分类
+        base_stmt = base_stmt.where(
+            Product.id.in_(
+                select(ProductCategory.product_id).where(
+                    ProductCategory.category_id == category_id
+                )
+            )
+        )
+
+    # 排序逻辑
+    if sort_by == "price_asc":
+        base_stmt = base_stmt.order_by(Product.price.asc())
+    elif sort_by == "price_desc":
+        base_stmt = base_stmt.order_by(Product.price.desc())
+    else:  # newest
+        base_stmt = base_stmt.order_by(Product.created_at.desc())
+
+    # 获取总数
+    count_stmt = select(func.count()).select_from(base_stmt.subquery())
+    total = (await session.execute(count_stmt)).scalar() or 0
+
+    # 分页
+    offset = (page - 1) * page_size
+    list_stmt = base_stmt.offset(offset).limit(page_size)
+    result = await session.execute(list_stmt)
+    products = list(result.scalars().all())
+
+    return products, total
+
+
 async def create(session: AsyncSession, product: Product) -> None:
     """创建商品"""
     session.add(product)
@@ -109,10 +159,40 @@ async def set_categories(
     await session.flush()
 
 
-async def get_categories(session: AsyncSession, product_id: str) -> list[uuid.UUID]:
+async def get_categories(
+    session: AsyncSession, product_id: str | uuid.UUID
+) -> list[uuid.UUID]:
     """获取商品的分类ID列表"""
     stmt = select(ProductCategory.category_id).where(
         ProductCategory.product_id == product_id
     )
     result = await session.execute(stmt)
     return [row[0] for row in result.all()]
+
+
+async def deduct_stock(
+    session: AsyncSession, product_id: uuid.UUID, quantity: int
+) -> bool:
+    """扣减库存 (返回是否成功)"""
+    # 使用悲观锁 (SELECT FOR UPDATE) 防止超卖
+    stmt = select(Product).where(Product.id == product_id).with_for_update()
+    product = (await session.execute(stmt)).scalar_one_or_none()
+
+    if not product or product.stock < quantity:
+        return False
+
+    product.stock -= quantity
+    await session.flush()
+    return True
+
+
+async def recover_stock(
+    session: AsyncSession, product_id: uuid.UUID, quantity: int
+) -> None:
+    """恢复库存 (异常回滚或取消订单时使用)"""
+    stmt = select(Product).where(Product.id == product_id).with_for_update()
+    product = (await session.execute(stmt)).scalar_one_or_none()
+
+    if product:
+        product.stock += quantity
+        await session.flush()

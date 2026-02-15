@@ -8,7 +8,7 @@ from app.api.deps import get_category_service
 from app.common.constants import GET_SUCCESS
 from app.schemas import SuccessResponse
 from app.schemas.category import CategoryOut
-from app.services.category_service import CategoryService
+from app.services import CategoryService
 
 category_router = APIRouter()
 

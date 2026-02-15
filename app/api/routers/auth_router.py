@@ -23,7 +23,8 @@ from app.services import AuthService, CaptchaService
 from app.utils import RateLimiter, delete_refresh_token
 
 auth_router = APIRouter()
-REFRESH_PATH = "/api/auths/refresh"
+# Cookie path 需要覆盖 /refresh 和 /logout 两个接口
+COOKIE_PATH = "/api/auths"
 
 
 @auth_router.get(
@@ -88,7 +89,7 @@ async def login(
         secure=ENV == "production",  # TODO 根据环境决定是否开启
         samesite="lax",
         max_age=REFRESH_TOKEN_EXPIRE_DAYS * 24 * 60 * 60,  # 7 天
-        path=REFRESH_PATH,
+        path=COOKIE_PATH,
     )
 
     return SuccessResponse[AccessTokenOut](
@@ -105,8 +106,8 @@ async def login(
 )
 async def refresh_all_token(
     response: Response,
-    refresh_token: Annotated[str, Cookie(description="刷新令牌")],
     auth_service: Annotated[AuthService, Depends(get_auth_service)],
+    refresh_token: Annotated[str | None, Cookie(description="刷新令牌")] = None,
 ) -> SuccessResponse[AccessTokenOut]:
     """
     刷新令牌接口路由
@@ -121,7 +122,7 @@ async def refresh_all_token(
         secure=ENV == "production",
         samesite="lax",
         max_age=REFRESH_TOKEN_EXPIRE_DAYS * 24 * 60 * 60,
-        path=REFRESH_PATH,
+        path=COOKIE_PATH,
     )
 
     return SuccessResponse[AccessTokenOut](
@@ -143,11 +144,11 @@ async def logout(
     if refresh_token:
         await delete_refresh_token(refresh_token)
 
-    response.delete_cookie(
-        key="refresh_token",
-        httponly=True,
-        secure=ENV == "production",
-        samesite="lax",
-        path=REFRESH_PATH,
-    )
+        response.delete_cookie(
+            key="refresh_token",
+            httponly=True,
+            secure=ENV == "production",
+            samesite="lax",
+            path=COOKIE_PATH,
+        )
     return SuccessResponse[None](message="登出成功")

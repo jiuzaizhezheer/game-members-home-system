@@ -14,6 +14,7 @@ class MerchantOut(BaseModel):
     shop_name: str = Field(description="店铺名称")
     contact_phone: str | None = Field(default=None, description="联系电话")
     shop_desc: str | None = Field(default=None, description="店铺描述")
+    logo_url: str | None = Field(default=None, description="店铺Logo URL")
     created_at: datetime = Field(description="创建时间")
 
     model_config = {"from_attributes": True}
@@ -22,8 +23,11 @@ class MerchantOut(BaseModel):
 class MerchantUpdateIn(BaseModel):
     """更新商家信息请求"""
 
-    shop_name: str = Field(min_length=2, max_length=128, description="店铺名称")
+    shop_name: str | None = Field(
+        default=None, min_length=2, max_length=128, description="店铺名称"
+    )
     contact_phone: str | None = Field(
         default=None, min_length=11, max_length=11, description="联系电话"
     )
     shop_desc: str | None = Field(default=None, description="店铺描述")
+    logo_url: str | None = Field(default=None, description="店铺Logo URL")

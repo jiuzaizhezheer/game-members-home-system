@@ -11,14 +11,26 @@ VERSION: str = os.getenv("VERSION", "1.0.0")
 DEBUG: bool = os.getenv("DEBUG", "true").lower() == "true"
 ENV: str = os.getenv("ENV", "local")
 
-# Database
-POSTGRES_USER: str = os.getenv("POSTGRES_USER", "root")
-POSTGRES_PASSWORD: str = os.getenv("POSTGRES_PASSWORD", "123456")
-POSTGRES_DB: str = os.getenv("POSTGRES_DB", "game_member_hub")
+# PostgreSQL
+POSTGRES_USER: str = os.getenv("POSTGRES_USER", "admin")
+POSTGRES_PASSWORD: str = os.getenv("POSTGRES_PASSWORD", "admin123")
+POSTGRES_DB: str = os.getenv("POSTGRES_DB", "game_member_home")
+POSTGRES_HOST: str = os.getenv("POSTGRES_HOST", "127.0.0.1")
+POSTGRES_PORT: int = int(os.getenv("POSTGRES_PORT", 5432))
 
-# 如果环境变量未设置，提供一个默认值或抛出错误
 DATABASE_URL: str = (
-    f"postgresql+asyncpg://{POSTGRES_USER}:{POSTGRES_PASSWORD}@127.0.0.1:5432/{POSTGRES_DB}"
+    f"postgresql+asyncpg://{POSTGRES_USER}:{POSTGRES_PASSWORD}@{POSTGRES_HOST}:{POSTGRES_PORT}/{POSTGRES_DB}"
+)
+
+# MongoDB
+MONGO_ROOT_USER: str = os.getenv("MONGO_ROOT_USER", "admin")
+MONGO_ROOT_PASSWORD: str = os.getenv("MONGO_ROOT_PASSWORD", "admin123")
+MONGO_DB: str = os.getenv("MONGO_DB", "game_member_home")
+MONGO_HOST: str = os.getenv("MONGO_HOST", "127.0.0.1")
+MONGO_PORT: str = os.getenv("MONGO_PORT", "27017")
+
+MONGO_DATABASE_URL: str = (
+    f"mongodb://{MONGO_ROOT_USER}:{MONGO_ROOT_PASSWORD}@{MONGO_HOST}:{MONGO_PORT}?authSource=admin"
 )
 
 # Redis
@@ -27,6 +39,16 @@ REDIS_PORT: int = int(os.getenv("REDIS_PORT", 6379))
 REDIS_DB: int = int(os.getenv("REDIS_DB", 8))
 
 REDIS_URL: str = f"redis://{REDIS_HOST}:{REDIS_PORT}/{REDIS_DB}"
+
+# RabbitMQ
+RABBITMQ_USER: str = os.getenv("RABBITMQ_USER", "admin")
+RABBITMQ_PASSWORD: str = os.getenv("RABBITMQ_PASSWORD", "admin123")
+RABBITMQ_HOST: str = os.getenv("RABBITMQ_HOST", "127.0.0.1")
+RABBITMQ_PORT: int = int(os.getenv("RABBITMQ_PORT", 5672))
+
+RABBITMQ_URL: str = (
+    f"amqp://{RABBITMQ_USER}:{RABBITMQ_PASSWORD}@{RABBITMQ_HOST}:{RABBITMQ_PORT}//"
+)
 
 # JWT
 SECRET_KEY: str = os.getenv("SECRET_KEY", "your-secret-key-here")

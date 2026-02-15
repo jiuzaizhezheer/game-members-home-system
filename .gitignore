@@ -155,3 +155,9 @@ coverage/
 
 Assistant-Memory.md
 Project-Description.md
+
+# celery
+celerybeat-schedule*
+
+# Static files
+static/
