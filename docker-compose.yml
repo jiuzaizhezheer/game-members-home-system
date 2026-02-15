@@ -1,20 +1,37 @@
 services:
   postgresql:
     image: postgres:15
+    container_name: postgresql
     environment:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: ${POSTGRES_DB}
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./app/database/init_game_member_hub.sql:/docker-entrypoint-initdb.d/init.sql
+      - ./app/database/pgsql/init_game_member_home.sql:/docker-entrypoint-initdb.d/init.sql
     ports:
       - "5432:5432"
     networks:
       - gmhs
 
+  mongodb:
+    image: mongo:7.0
+    container_name: mongodb
+    ports:
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_ROOT_USER}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD}
+      MONGO_INITDB_DATABASE: ${MONGO_DB}
+    volumes:
+      - mongo_data:/data/db
+      - mongo_config:/data/configdb
+    networks:
+      - gmhs
+
   redis:
     image: redis:7.0-alpine
+    container_name: redis
     ports:
       - "6379:6379"
     volumes:
@@ -22,9 +39,28 @@ services:
     networks:
       - gmhs
 
+  rabbitmq:
+    image: rabbitmq:3.13-management
+    container_name: rabbitmq
+    hostname: rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD}
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    networks:
+      - gmhs
+
 networks:
   gmhs:
+
 
 volumes:
   postgres_data:
   redis_data:
+  mongo_data:
+  mongo_config:
+  rabbitmq_data:

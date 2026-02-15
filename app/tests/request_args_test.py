@@ -10,7 +10,7 @@ try:
         username="validuser",
         email="test@example.com",
         password="password123",
-        role=RoleEnum.member,
+        role=RoleEnum.MEMBER,
         captcha_id="a" * 36,
         captcha_code="123456",
     )
@@ -23,7 +23,7 @@ try:
             username="validuser",
             email="test@example.com",
             password="password123",
-            role=RoleEnum.member,
+            role=RoleEnum.MEMBER,
             captcha_id="a" * 37,  # 长度太长
             captcha_code="123456",
         )
@@ -37,7 +37,7 @@ try:
             username="validuser",
             email="test@example.com",
             password="password123",
-            role=RoleEnum.member,
+            role=RoleEnum.MEMBER,
             captcha_id="a" * 36,
             captcha_code="1234567",  # 长度太长
         )

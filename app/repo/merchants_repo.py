@@ -3,7 +3,7 @@
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.entity import Merchant
+from app.entity.pgsql import Merchant
 
 
 async def get_by_user_id(session: AsyncSession, user_id: str) -> Merchant | None:

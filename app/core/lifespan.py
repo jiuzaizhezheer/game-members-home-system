@@ -5,29 +5,23 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from sqlalchemy import text
 
-from app.database import engine
-from app.redis import get_redis, redis_pool
-from app.services import AuthService, CaptchaService, UserService
-from app.services.category_service import CategoryService
-from app.services.merchant_service import MerchantService
-from app.services.product_service import ProductService
+from app.database.mongodb import init_mongodb, mongodb_client
+from app.database.pgsql import pg_engine
+from app.database.redis import get_redis, redis_pool
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     logger = logging.getLogger("uvicorn")
     try:
-        # 单例模式
-        app.state.user_service = UserService()
-        app.state.auth_service = AuthService()
-        app.state.captcha_service = CaptchaService()
-        app.state.merchant_service = MerchantService()
-        app.state.product_service = ProductService()
-        app.state.category_service = CategoryService()
         # 初始化pgsql
-        async with engine.begin() as conn:
+        async with pg_engine.begin() as conn:
             await conn.execute(text("SELECT 1"))
-        logger.info("已开启数据库连接")
+        logger.info("已开启Pgsql连接")
+        # 初始化MongoDB
+        await init_mongodb()
+        await mongodb_client.admin.command("ping")
+        logger.info("已开启MongoDB连接")
         # 初始化Redis
         async with get_redis() as redis:
             await redis.ping()  # type: ignore
@@ -35,8 +29,11 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         yield
     finally:
         # 关闭pgsql连接
-        await engine.dispose()
-        logger.info("已关闭pgsql连接")
+        await pg_engine.dispose()
+        logger.info("已关闭Pgsql连接")
+        # 关闭MongoDB连接
+        mongodb_client.close()
+        logger.info("已关闭MongoDB连接")
         # 关闭Redis连接
         await redis_pool.disconnect()
         logger.info("已关闭Redis连接")

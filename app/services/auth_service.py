@@ -5,8 +5,8 @@ from app.common.constants import (
 )
 from app.common.enums import RoleEnum
 from app.common.errors import DuplicateResourceError, UnauthorizedError
-from app.database import get_db
-from app.entity import Merchant, User
+from app.database.pgsql import get_pg
+from app.entity.pgsql import Merchant, User
 from app.repo import merchants_repo, users_repo
 from app.schemas import AuthLoginIn, AuthRegisterIn, TokenOut
 from app.utils import (
@@ -22,7 +22,7 @@ from app.utils import (
 class AuthService:
     async def register(self, payload: AuthRegisterIn) -> None:
         """用户注册服务"""
-        async with get_db() as session:
+        async with get_pg() as session:
             if await users_repo.exists_by_username_or_email_in_role(
                 session, payload.username, payload.email, payload.role
             ):
@@ -41,7 +41,7 @@ class AuthService:
 
     async def login(self, payload: AuthLoginIn) -> TokenOut:
         """用户登录服务"""
-        async with get_db() as session:
+        async with get_pg() as session:
             # 验证邮箱是否存在
             user = await users_repo.get_by_email(session, payload.email, payload.role)
 
@@ -53,8 +53,11 @@ class AuthService:
 
             return TokenOut(access_token=access_token, refresh_token=refresh_token)
 
-    async def refresh_all_token(self, refresh_token: str) -> TokenOut:
+    async def refresh_all_token(self, refresh_token: str | None) -> TokenOut:
         """刷新令牌服务"""
+        if not refresh_token:
+            raise UnauthorizedError(REFRESH_TOKEN_INVALID)
+
         # 1. 验证 refresh_token 是否有效
         token_data = await verify_refresh_token(refresh_token)
         if not token_data:
