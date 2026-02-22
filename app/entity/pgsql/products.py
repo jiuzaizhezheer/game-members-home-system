@@ -52,6 +52,12 @@ class Product(BaseEntity):
     sales_count: Mapped[int] = mapped_column(
         Integer, nullable=False, server_default=text("0"), comment="销售数量"
     )
+    favorites_count: Mapped[int] = mapped_column(
+        Integer, nullable=False, server_default=text("0"), comment="收藏数量"
+    )
+    likes_count: Mapped[int] = mapped_column(
+        Integer, nullable=False, server_default=text("0"), comment="点赞数量"
+    )
     image_url: Mapped[str | None] = mapped_column(String(512), comment="商品图片URL")
     __table_args__ = (
         CheckConstraint("price >= 0", name="chk_products_price_nonneg"),

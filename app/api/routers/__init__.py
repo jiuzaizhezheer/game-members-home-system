@@ -4,7 +4,13 @@ from .auth_router import auth_router
 from .cart_router import cart_router
 from .category_router import category_router
 from .common_router import common_router
+from .community_router import community_router
+from .favorite_router import favorite_router
+from .merchant_community_router import merchant_community_router
+from .merchant_promotion_router import merchant_promotion_router
 from .merchant_router import merchant_router
+from .merchant_statistics_router import merchant_statistics_router
+from .message_router import message_router
 from .order_router import order_router
 from .product_router import product_router
 from .user_router import user_router
@@ -14,10 +20,16 @@ __all__ = [
     "auth_router",
     "category_router",
     "common_router",
+    "community_router",
+    "favorite_router",
+    "merchant_community_router",
+    "merchant_promotion_router",
     "merchant_router",
+    "merchant_statistics_router",
     "product_router",
     "user_router",
     "cart_router",
     "address_router",
     "order_router",
+    "message_router",
 ]

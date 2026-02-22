@@ -13,7 +13,7 @@ from app.common.constants import (
     ORDER_RECEIPT_SUCCESS,
 )
 from app.schemas import SuccessResponse
-from app.schemas.order import OrderCreateIn, OrderListOut, OrderOut
+from app.schemas.order import BuyNowIn, OrderCreateIn, OrderListOut, OrderOut
 from app.services.order_service import OrderService
 
 order_router = APIRouter()
@@ -32,6 +32,22 @@ async def create_order(
 ) -> SuccessResponse[OrderOut]:
     """创建订单（从购物车结算）"""
     order = await order_service.create_from_cart(user_id, payload)
+    return SuccessResponse[OrderOut](message="下单成功", data=order)
+
+
+@order_router.post(
+    path="/buy-now",
+    dependencies=[require_member],
+    response_model=SuccessResponse[OrderOut],
+    status_code=status.HTTP_201_CREATED,
+)
+async def buy_now(
+    user_id: Annotated[str, Depends(get_current_user_id)],
+    payload: Annotated[BuyNowIn, Body(description="立即购买请求")],
+    order_service: Annotated[OrderService, Depends(get_order_service)],
+) -> SuccessResponse[OrderOut]:
+    """立即购买（绕过购物车直接下单）"""
+    order = await order_service.buy_now(user_id, payload)
     return SuccessResponse[OrderOut](message="下单成功", data=order)
 
 

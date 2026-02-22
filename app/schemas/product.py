@@ -1,6 +1,7 @@
 """商品相关的请求和响应模型"""
 
 import uuid
+from datetime import datetime
 from decimal import Decimal
 from typing import Literal
 
@@ -57,20 +58,41 @@ class ProductStatusIn(BaseModel):
     status: Literal["on", "off"] = Field(description="商品状态：on-上架，off-下架")
 
 
+class ProductPromotionOut(BaseModel):
+    """商品关联的简略促销信息"""
+
+    id: uuid.UUID
+    title: str
+    discount_type: Literal["percent", "fixed"]
+    discount_value: Decimal
+    start_at: datetime
+    end_at: datetime
+
+
 class ProductPublicOut(BaseModel):
     """公开商品响应（用户端）"""
 
     id: uuid.UUID = Field(description="商品ID")
-    merchant_id: uuid.UUID = Field(description="商家ID")
+    merchant_id: uuid.UUID = Field(description="商家ID(店铺ID)")
+    merchant_user_id: uuid.UUID | None = Field(
+        default=None, description="商家用户ID(用于聊天)"
+    )
     name: str = Field(description="商品名称")
     description: str | None = Field(default=None, description="商品描述")
     price: Decimal = Field(description="商品价格")
     stock: int = Field(description="库存数量")
     image_url: str | None = Field(default=None, description="商品图片URL")
     sales_count: int = Field(description="销售数量")
+    favorites_count: int = Field(default=0, description="收藏数量")
+    likes_count: int = Field(default=0, description="点赞数量")
+    popularity_score: int = Field(default=0, description="综合热度评分")
 
     category_ids: list[uuid.UUID] = Field(
         default_factory=list, description="分类ID列表"
+    )
+
+    active_promotion: ProductPromotionOut | None = Field(
+        default=None, description="当前有效的最优促销活动"
     )
 
     model_config = {"from_attributes": True}

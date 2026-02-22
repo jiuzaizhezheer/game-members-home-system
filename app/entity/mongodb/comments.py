@@ -15,6 +15,7 @@ class CommentUserRedundancy(BaseModel):
 class Comment(BaseEntity):
     post_id: UUID = Field(..., description="关联的帖子 ID")
     user: CommentUserRedundancy = Field(..., description="冗余存储的用户信息")
+    reply_to: CommentUserRedundancy | None = Field(None, description="被回复的用户信息")
     root_id: PydanticObjectId | None = Field(None, description="根评论 ID (顶层楼层)")
     parent_id: PydanticObjectId | None = Field(None, description="直接父评论 ID")
     content: str = Field(..., description="评论内容")

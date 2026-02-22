@@ -33,5 +33,6 @@ __all__ = [
     "Product",
     "PromotionProduct",
     "Promotion",
+    "Promotion",
     "User",
 ]

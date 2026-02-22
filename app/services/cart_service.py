@@ -2,6 +2,7 @@
 
 import uuid
 from decimal import Decimal
+from typing import Literal, cast
 
 from sqlalchemy import select
 
@@ -43,13 +44,65 @@ class CartService:
             total_amount = Decimal("0.00")
             total_quantity = 0
 
+            # 批量获取商品ID以便查询促销
+            product_ids = [item.product_id for item in items]
+
+            # 获取有效促销
+            from app.services.promotion_service import PromotionService
+
+            promotion_service = PromotionService()
+            active_promotions = (
+                await promotion_service.get_active_promotions_by_product_ids(
+                    product_ids
+                )
+            )
+
             for item in items:
                 product = await products_repo.get_by_id(session, str(item.product_id))
                 if not product:
                     await carts_repo.delete_item(session, item)
                     continue
 
-                current_price = Decimal(str(product.price))
+                original_price = Decimal(str(product.price))
+                current_price = original_price
+                active_promo = None
+                cart_original_price = None
+
+                # 应用促销逻辑
+                if product.id in active_promotions:
+                    promo = active_promotions[product.id]
+                    from app.schemas.product import ProductPromotionOut
+
+                    discount_type = cast(
+                        Literal["percent", "fixed"], promo.discount_type
+                    )
+                    discount_value = Decimal(str(promo.discount_value))
+                    active_promo = ProductPromotionOut(
+                        id=promo.id,
+                        title=promo.title,
+                        discount_type=discount_type,
+                        discount_value=discount_value,
+                        start_at=promo.start_at,
+                        end_at=promo.end_at,
+                    )
+
+                    # 计算优惠价
+                    if promo.discount_type == "percent":
+                        # discount_value represents "Percentage OFF" (e.g. 20 means 20% OFF, i.e. 80% price)
+                        # Previous logic was price * (value / 100) which assumed value was "Price Rate".
+                        # Correct logic: price * ((100 - value) / 100)
+                        discount_rate = (Decimal("100") - discount_value) / Decimal(
+                            "100"
+                        )
+                        discount_rate = max(discount_rate, Decimal("0"))
+                        current_price = original_price * discount_rate
+                    elif promo.discount_type == "fixed":
+                        current_price = original_price - discount_value
+                        if current_price < Decimal("0"):
+                            current_price = Decimal("0.01")  # Minimum price
+
+                    cart_original_price = original_price
+
                 subtotal = current_price * item.quantity
 
                 cart_items_out.append(
@@ -59,8 +112,10 @@ class CartService:
                         product_name=product.name,
                         product_image=product.image_url,
                         unit_price=current_price,
+                        original_price=cart_original_price,
                         quantity=item.quantity,
                         subtotal=subtotal,
+                        active_promotion=active_promo,
                     )
                 )
                 total_amount += subtotal

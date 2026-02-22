@@ -12,7 +12,6 @@
 # ========================
 APP_MODULE = app.main:app
 PYTHON = pdm run
-ALEMBIC = $(PYTHON) alembic
 
 # ========================
 # 帮助
@@ -68,15 +67,6 @@ docker-up: ## Start docker services
 
 docker-down: ## Stop docker services
 	docker compose down
-
-# ========================
-# 数据库
-# ========================
-makemigrations: ## Create new database migration
-	$(ALEMBIC) revision --autogenerate -m "Auto migration"
-
-migrate: ## Apply database migrations
-	$(ALEMBIC) upgrade head
 
 # ========================
 # 工程化

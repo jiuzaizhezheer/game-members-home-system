@@ -15,7 +15,13 @@ from app.repo import (
     orders_repo,
     products_repo,
 )
-from app.schemas.order import OrderCreateIn, OrderItemOut, OrderOut
+from app.schemas.order import (
+    BuyNowIn,
+    OrderCreateIn,
+    OrderItemOut,
+    OrderOut,
+    OrderShipIn,
+)
 from app.utils import generate_order_no
 
 
@@ -44,6 +50,17 @@ class OrderService:
             total_amount = Decimal("0.00")
             order_items_to_create = []
 
+            # 获取所有商品的有效促销
+            from app.services.promotion_service import PromotionService
+
+            promotion_service = PromotionService()
+            product_ids = [ci.product_id for ci in cart_items]
+            active_promotions = (
+                await promotion_service.get_active_promotions_by_product_ids(
+                    product_ids
+                )
+            )
+
             # 为了防止并发问题，我们在 products_repo 中使用了 FOR UPDATE
             for ci in cart_items:
                 # 获取该商品的最新价格 (通常下单时锁定价格)
@@ -58,8 +75,27 @@ class OrderService:
                 if not success:
                     raise BusinessError(detail=f"商品 {product.name} 库存不足")
 
+                # 计算价格 (应用促销)
+                product_price = Decimal(str(product.price))
+                unit_price = product_price
+                if product.id in active_promotions:
+                    promo = active_promotions[product.id]
+                    discount_value = Decimal(str(promo.discount_value))
+                    if promo.discount_type == "percent":
+                        # discount_value=20 means 20% OFF -> 80% price
+                        # discount_value=20 means 80%? No, usually 20 means 20% OFF.
+                        # Wait, in create.tsx: "输入 20 代表 20% OFF (即8折)"
+                        # So multiplier is (100 - 20) / 100 = 0.8
+                        discount_rate = (Decimal(100) - discount_value) / Decimal(100)
+                        # Ensure non-negative
+                        discount_rate = max(discount_rate, Decimal(0))
+                        unit_price = product_price * discount_rate
+                    elif promo.discount_type == "fixed":
+                        unit_price = product_price - discount_value
+                        unit_price = max(unit_price, Decimal("0.01"))  # At least 0.01
+
                 # 计算小计
-                subtotal = product.price * ci.quantity
+                subtotal = unit_price * ci.quantity
                 total_amount += subtotal
 
                 # 准备订单明细
@@ -67,7 +103,7 @@ class OrderService:
                     OrderItem(
                         product_id=ci.product_id,
                         quantity=ci.quantity,
-                        unit_price=product.price,
+                        unit_price=unit_price,  # Store the actual (discounted) price
                         product=product,  # 赋值以便下文直接获取名称
                     )
                 )
@@ -109,6 +145,91 @@ class OrderService:
                         product_image=oi.product.image_url,
                     )
                     for oi in order_items_to_create
+                ],
+            )
+
+    async def buy_now(self, user_id: str, payload: BuyNowIn) -> OrderOut:
+        """立即购买：绕过购物车直接创建订单"""
+        async with get_pg() as session:
+            # 1. 验证地址
+            address = await addresses_repo.get_by_id(session, str(payload.address_id))
+            if not address or str(address.user_id) != user_id:
+                raise NotFoundError("收货地址不存在")
+
+            # 2. 验证商品
+            product = await products_repo.get_by_id(session, str(payload.product_id))
+            if not product or product.status != "on":
+                raise BusinessError(detail="商品已下架或不存在")
+
+            # 3. 扣减库存
+            success = await products_repo.deduct_stock(
+                session, payload.product_id, payload.quantity
+            )
+            if not success:
+                raise BusinessError(detail=f"商品 {product.name} 库存不足")
+
+            # 4. 计算总价 (应用促销)
+            from app.services.promotion_service import PromotionService
+
+            promotion_service = PromotionService()
+            active_promotions = (
+                await promotion_service.get_active_promotions_by_product_ids(
+                    [product.id]
+                )
+            )
+
+            product_price = Decimal(str(product.price))
+            unit_price = product_price
+            if product.id in active_promotions:
+                promo = active_promotions[product.id]
+                discount_value = Decimal(str(promo.discount_value))
+                if promo.discount_type == "percent":
+                    discount_rate = (Decimal(100) - discount_value) / Decimal(100)
+                    discount_rate = max(discount_rate, Decimal(0))
+                    unit_price = product_price * discount_rate
+                elif promo.discount_type == "fixed":
+                    unit_price = product_price - discount_value
+                    unit_price = max(unit_price, Decimal("0.01"))
+
+            total_amount = unit_price * payload.quantity
+
+            # 5. 创建订单
+            new_order = Order(
+                user_id=uuid.UUID(user_id),
+                address_id=payload.address_id,
+                order_no=generate_order_no(),
+                status="pending",
+                total_amount=total_amount,
+            )
+            await orders_repo.create(session, new_order)
+
+            # 6. 创建订单明细
+            order_item = OrderItem(
+                order_id=new_order.id,
+                product_id=payload.product_id,
+                quantity=payload.quantity,
+                unit_price=unit_price,
+                product=product,
+            )
+            await orders_repo.add_items(session, [order_item])
+
+            # 7. 组装响应
+            return OrderOut(
+                id=new_order.id,
+                order_no=new_order.order_no,
+                status=new_order.status,
+                total_amount=new_order.total_amount,
+                address_id=new_order.address_id,
+                created_at=new_order.created_at,
+                items=[
+                    OrderItemOut(
+                        id=order_item.id,
+                        product_id=order_item.product_id,
+                        quantity=order_item.quantity,
+                        unit_price=order_item.unit_price,
+                        product_name=product.name,
+                        product_image=product.image_url,
+                    )
                 ],
             )
 
@@ -198,26 +319,33 @@ class OrderService:
             if order.status != "pending":
                 raise BusinessError(detail="订单状态不可支付")
 
-            # 3. 更新状态
+            # 3. 更新销量与人气分
+            items = await orders_repo.get_items_by_order_id(session, order.id)
+            for item in items:
+                await products_repo.increment_sales(
+                    session, item.product_id, item.quantity
+                )
+
+            # 4. 更新状态
             order.status = "paid"
             order.paid_at = datetime.now(UTC)
             await session.flush()
 
-    async def ship_order(self, order_id: str) -> None:
-        """订单发货 (需鉴权: 商家是否拥有该订单商品)"""
+    async def ship_order(self, order_id: str, payload: OrderShipIn) -> None:
+        """订单发货"""
         async with get_pg() as session:
             order = await orders_repo.get_by_id(session, order_id)
             if not order:
                 raise NotFoundError("订单不存在")
 
             if order.status != "paid":
-                # raise BusinessError("订单状态不可发货")
-                # 暂时允许 pending -> shipped (为了方便测试), 或者严格 paid -> shipped
-                if order.status != "paid":
-                    raise BusinessError(detail="订单未支付或状态异常")
+                # 暂时严格校验必须支付后发货
+                raise BusinessError(detail="订单未支付或状态异常")
 
             order.status = "shipped"
             order.shipped_at = datetime.now(UTC)
+            order.courier_name = payload.courier_name
+            order.tracking_no = payload.tracking_no
             await session.flush()
 
     async def receipt_order(self, user_id: str, order_id: str) -> None:

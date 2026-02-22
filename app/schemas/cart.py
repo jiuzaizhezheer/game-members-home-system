@@ -5,6 +5,8 @@ from decimal import Decimal
 
 from pydantic import BaseModel, Field
 
+from app.schemas.product import ProductPromotionOut
+
 
 class CartItemAddIn(BaseModel):
     """验证添加商品到购物车"""
@@ -26,9 +28,13 @@ class CartItemOut(BaseModel):
     product_id: uuid.UUID = Field(description="商品ID")
     product_name: str = Field(description="商品名称")
     product_image: str | None = Field(default=None, description="商品图片")
-    unit_price: Decimal = Field(description="单价")
+    unit_price: Decimal = Field(description="单价(可能是优惠后的价格)")
+    original_price: Decimal | None = Field(default=None, description="原价(如果有优惠)")
     quantity: int = Field(description="数量")
     subtotal: Decimal = Field(description="小计")
+    active_promotion: "ProductPromotionOut | None" = Field(
+        default=None, description="当前应用的促销"
+    )
 
     model_config = {"from_attributes": True}
 

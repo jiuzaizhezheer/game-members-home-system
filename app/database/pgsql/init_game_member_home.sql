@@ -85,6 +85,8 @@ CREATE TABLE IF NOT EXISTS products (
     popularity_score integer NOT NULL DEFAULT 0,
     views_count     integer NOT NULL DEFAULT 0,
     sales_count     integer NOT NULL DEFAULT 0,
+    favorites_count integer NOT NULL DEFAULT 0,
+    likes_count     integer NOT NULL DEFAULT 0,
     created_at      timestamptz NOT NULL DEFAULT now(),
     updated_at      timestamptz NOT NULL DEFAULT now(),
     CONSTRAINT chk_products_status CHECK (status IN ('on','off'))
@@ -92,6 +94,8 @@ CREATE TABLE IF NOT EXISTS products (
 CREATE INDEX IF NOT EXISTS idx_products_merchant ON products(merchant_id);
 CREATE INDEX IF NOT EXISTS idx_products_popularity ON products(popularity_score DESC, sales_count DESC);
 CREATE INDEX IF NOT EXISTS idx_products_views ON products(views_count DESC);
+CREATE INDEX IF NOT EXISTS idx_products_favorites ON products(favorites_count DESC);
+CREATE INDEX IF NOT EXISTS idx_products_likes ON products(likes_count DESC);
 CREATE INDEX IF NOT EXISTS idx_products_name ON products(name); -- 搜索建议优化
 
 -- =========================
@@ -158,6 +162,8 @@ CREATE TABLE IF NOT EXISTS orders (
     paid_at         timestamptz,
     shipped_at      timestamptz,
     completed_at    timestamptz,
+    courier_name    varchar(64),
+    tracking_no     varchar(64),
     created_at      timestamptz NOT NULL DEFAULT now(),
     updated_at      timestamptz NOT NULL DEFAULT now(),
     CONSTRAINT chk_orders_status CHECK (status IN ('pending','paid','shipped','completed','cancelled'))
@@ -234,11 +240,17 @@ CREATE TABLE IF NOT EXISTS promotion_products (
 -- =========================
 CREATE TABLE IF NOT EXISTS community_groups (
     id              uuid PRIMARY KEY,
+    merchant_id     uuid, -- 逻辑外键: merchants.id (可选，为空表示官方圈子)
     name            varchar(128) NOT NULL UNIQUE,
     description     text,
+    member_count    integer NOT NULL DEFAULT 0,
+    post_count      integer NOT NULL DEFAULT 0,
+    cover_image     varchar(512),
+    is_active       boolean NOT NULL DEFAULT true,
     created_at      timestamptz NOT NULL DEFAULT now(),
     updated_at      timestamptz NOT NULL DEFAULT now()
 );
+CREATE INDEX IF NOT EXISTS idx_community_groups_merchant ON community_groups(merchant_id);
 -- =========================
 -- 社区分组成员实体
 -- =========================
@@ -261,7 +273,13 @@ CREATE TABLE IF NOT EXISTS posts (
     user_id         uuid NOT NULL, -- 逻辑外键: users.id
     title           varchar(255) NOT NULL,
     content         text NOT NULL,
+    images          text[] DEFAULT '{}'::text[] NOT NULL,
+    videos          text[] DEFAULT '{}'::text[] NOT NULL,
+    view_count      integer NOT NULL DEFAULT 0,
     likes_count     integer NOT NULL DEFAULT 0,
+    comment_count   integer NOT NULL DEFAULT 0,
+    is_top          boolean NOT NULL DEFAULT false,
+    is_hidden       boolean NOT NULL DEFAULT false,
     created_at      timestamptz NOT NULL DEFAULT now(),
     updated_at      timestamptz NOT NULL DEFAULT now()
 );

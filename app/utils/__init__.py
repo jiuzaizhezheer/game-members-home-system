@@ -1,4 +1,5 @@
 from .common import generate_order_no
+from .operation_lock import check_operation_lock
 from .password_util import hash_password, verify_password
 from .rate_limit import RateLimiter
 from .token_util import (
@@ -22,4 +23,5 @@ __all__ = [
     "is_valid_email",
     "id_password_has_letter_and_digit",
     "generate_order_no",
+    "check_operation_lock",
 ]

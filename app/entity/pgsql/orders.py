@@ -66,6 +66,8 @@ class Order(BaseEntity):
     completed_at: Mapped["datetime | None"] = mapped_column(
         DateTime(timezone=True), comment="完成时间"
     )
+    courier_name: Mapped[str | None] = mapped_column(String(64), comment="快递公司名称")
+    tracking_no: Mapped[str | None] = mapped_column(String(64), comment="物流单号")
     __table_args__ = (
         CheckConstraint("total_amount >= 0", name="chk_orders_total_amount_nonneg"),
         CheckConstraint(
