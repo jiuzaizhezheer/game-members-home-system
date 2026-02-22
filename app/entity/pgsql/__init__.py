@@ -1,4 +1,5 @@
 from .addresses import Address
+from .admin_logs import AdminLog
 from .cart_items import CartItem
 from .carts import Cart
 from .categories import Category
@@ -18,6 +19,7 @@ from .users import User
 
 __all__ = [
     "Address",
+    "AdminLog",
     "CartItem",
     "Cart",
     "Category",
