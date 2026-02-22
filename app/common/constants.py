@@ -34,6 +34,7 @@ PRODUCT_UPDATE_SUCCESS = "商品更新成功"
 PRODUCT_STATUS_UPDATE_SUCCESS = "商品状态更新成功"
 MERCHANT_UPDATE_SUCCESS = "商家信息更新成功"
 GET_SUCCESS = "获取成功"
+POST_SUCCESS = "操作成功"
 PRODUCT_DELETE_SUCCESS = "商品删除成功"
 
 # 购物车相关
@@ -48,3 +49,12 @@ ORDER_STATUS_ERROR = "订单状态不可取消"
 ORDER_PAY_SUCCESS = "订单支付成功"
 ORDER_SHIP_SUCCESS = "订单发货成功"
 ORDER_RECEIPT_SUCCESS = "确认收货成功"
+
+# 收藏相关
+FAVORITE_ADD_SUCCESS = "收藏成功"
+FAVORITE_REMOVE_SUCCESS = "取消收藏成功"
+
+# 社区相关
+# 社区相关
+COMMUNITY_GROUP_EXISTS = "话题圈名称已存在"
+COMMUNITY_GROUP_NOT_FOUND = "话题圈不存在"

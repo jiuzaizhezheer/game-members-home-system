@@ -6,7 +6,7 @@ from sqlalchemy import delete as sa_delete
 from sqlalchemy import exists, func, insert, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.entity.pgsql import Product, ProductCategory
+from app.entity.pgsql import Merchant, Product, ProductCategory
 
 
 async def get_by_id(session: AsyncSession, product_id: str) -> Product | None:
@@ -70,9 +70,13 @@ async def get_public_list(
     keyword: str | None = None,
     category_id: str | None = None,
     sort_by: str = "newest",
-) -> tuple[list[Product], int]:
-    """获取公开商品列表（仅上架商品）"""
-    base_stmt = select(Product).where(Product.status == "on")
+) -> tuple[list[tuple[Product, uuid.UUID]], int]:
+    """获取公开商品列表（仅上架商品）- 返回 (Product, merchant_user_id)"""
+    base_stmt = (
+        select(Product, Merchant.user_id)
+        .join(Merchant, Product.merchant_id == Merchant.id)
+        .where(Product.status == "on")
+    )
 
     if keyword:
         # 支持名称或描述搜索
@@ -96,6 +100,13 @@ async def get_public_list(
         base_stmt = base_stmt.order_by(Product.price.asc())
     elif sort_by == "price_desc":
         base_stmt = base_stmt.order_by(Product.price.desc())
+    elif sort_by == "popularity_desc":
+        base_stmt = base_stmt.order_by(
+            Product.popularity_score.desc(),
+            Product.sales_count.desc(),
+            Product.views_count.desc(),
+            Product.created_at.desc(),
+        )
     else:  # newest
         base_stmt = base_stmt.order_by(Product.created_at.desc())
 
@@ -107,7 +118,7 @@ async def get_public_list(
     offset = (page - 1) * page_size
     list_stmt = base_stmt.offset(offset).limit(page_size)
     result = await session.execute(list_stmt)
-    products = list(result.scalars().all())
+    products = list(result.tuples().all())
 
     return products, total
 
@@ -170,6 +181,19 @@ async def get_categories(
     return [row[0] for row in result.all()]
 
 
+async def get_with_merchant_user(
+    session: AsyncSession, product_id: str
+) -> tuple[Product, uuid.UUID] | None:
+    """获取商品及商家用户ID"""
+    stmt = (
+        select(Product, Merchant.user_id)
+        .join(Merchant, Product.merchant_id == Merchant.id)
+        .where(Product.id == product_id)
+    )
+    result = await session.execute(stmt)
+    return result.first()  # type: ignore
+
+
 async def deduct_stock(
     session: AsyncSession, product_id: uuid.UUID, quantity: int
 ) -> bool:
@@ -195,4 +219,71 @@ async def recover_stock(
 
     if product:
         product.stock += quantity
+        await session.flush()
+
+
+async def increment_views(session: AsyncSession, product_id: uuid.UUID | str) -> None:
+    """增加浏览量并更新人气分"""
+    stmt = select(Product).where(Product.id == product_id).with_for_update()
+    product = (await session.execute(stmt)).scalar_one_or_none()
+    if product:
+        product.views_count += 1
+        # 人气分计算公式：销量*10 + 收藏*5 + 点赞*2 + 浏览*1
+        product.popularity_score = (
+            (product.sales_count * 10)
+            + (product.favorites_count * 5)
+            + (product.likes_count * 2)
+            + (product.views_count * 1)
+        )
+        await session.flush()
+
+
+async def increment_sales(
+    session: AsyncSession, product_id: uuid.UUID | str, quantity: int
+) -> None:
+    """增加销量并更新人气分"""
+    stmt = select(Product).where(Product.id == product_id).with_for_update()
+    product = (await session.execute(stmt)).scalar_one_or_none()
+    if product:
+        product.sales_count += quantity
+        product.popularity_score = (
+            (product.sales_count * 10)
+            + (product.favorites_count * 5)
+            + (product.likes_count * 2)
+            + (product.views_count * 1)
+        )
+        await session.flush()
+
+
+async def change_favorites_count(
+    session: AsyncSession, product_id: uuid.UUID | str, delta: int
+) -> None:
+    """更新收藏数并同步人气分"""
+    stmt = select(Product).where(Product.id == product_id).with_for_update()
+    product = (await session.execute(stmt)).scalar_one_or_none()
+    if product:
+        product.favorites_count = max(0, product.favorites_count + delta)
+        product.popularity_score = (
+            (product.sales_count * 10)
+            + (product.favorites_count * 5)
+            + (product.likes_count * 2)
+            + (product.views_count * 1)
+        )
+        await session.flush()
+
+
+async def change_likes_count(
+    session: AsyncSession, product_id: uuid.UUID | str, delta: int
+) -> None:
+    """更新点赞数并同步人气分"""
+    stmt = select(Product).where(Product.id == product_id).with_for_update()
+    product = (await session.execute(stmt)).scalar_one_or_none()
+    if product:
+        product.likes_count = max(0, product.likes_count + delta)
+        product.popularity_score = (
+            (product.sales_count * 10)
+            + (product.favorites_count * 5)
+            + (product.likes_count * 2)
+            + (product.views_count * 1)
+        )
         await session.flush()

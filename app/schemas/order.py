@@ -15,6 +15,21 @@ class OrderCreateIn(BaseModel):
     address_id: uuid.UUID = Field(description="收货地址ID")
 
 
+class BuyNowIn(BaseModel):
+    """立即购买请求（绕过购物车）"""
+
+    product_id: uuid.UUID = Field(description="商品ID")
+    quantity: int = Field(ge=1, description="购买数量")
+    address_id: uuid.UUID = Field(description="收货地址ID")
+
+
+class OrderShipIn(BaseModel):
+    """商家发货请求数据"""
+
+    courier_name: str = Field(min_length=1, max_length=64, description="快递公司名称")
+    tracking_no: str = Field(min_length=1, max_length=64, description="物流单号")
+
+
 class OrderItemOut(BaseModel):
     """订单明细响应"""
 
@@ -40,6 +55,8 @@ class OrderOut(BaseModel):
     address_id: uuid.UUID | None
     address: AddressOut | None = None
     created_at: datetime
+    courier_name: str | None = None
+    tracking_no: str | None = None
     items: list[OrderItemOut] = Field(default_factory=list)
 
     model_config = {"from_attributes": True}

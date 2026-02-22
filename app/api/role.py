@@ -11,3 +11,7 @@ require_admin = Depends(RoleChecker(RoleEnum.ADMIN))  # 管理员角色依赖
 require_any_role = Depends(
     RoleChecker(RoleEnum.MEMBER, RoleEnum.MERCHANT, RoleEnum.ADMIN)
 )  # 任意角色依赖
+
+require_member_or_merchant = Depends(
+    RoleChecker(RoleEnum.MEMBER, RoleEnum.MERCHANT)
+)  # 会员或商户角色依赖

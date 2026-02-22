@@ -16,7 +16,7 @@ from app.schemas.merchant import (
     MerchantOut,
     MerchantUpdateIn,
 )
-from app.schemas.order import OrderListOut
+from app.schemas.order import OrderListOut, OrderShipIn
 from app.services import MerchantService, OrderService
 
 merchant_router = APIRouter()
@@ -84,8 +84,9 @@ async def get_my_orders(
 )
 async def ship_order(
     id: Annotated[str, Path(description="订单ID")],
+    payload: Annotated[OrderShipIn, Body(description="物流信息")],
     order_service: Annotated[OrderService, Depends(get_order_service)],
 ) -> SuccessResponse[None]:
     """订单发货"""
-    await order_service.ship_order(id)
+    await order_service.ship_order(id, payload)
     return SuccessResponse[None](message=ORDER_SHIP_SUCCESS)

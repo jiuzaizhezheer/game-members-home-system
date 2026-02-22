@@ -1,8 +1,8 @@
 import uuid
 
 import uuid6
-from sqlalchemy import Index, Integer, String, Text, text
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy import Boolean, Index, Integer, String, Text, text
+from sqlalchemy.dialects.postgresql import ARRAY, UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.database.pgsql import BaseEntity
@@ -30,8 +30,42 @@ class Post(BaseEntity):
     )
     title: Mapped[str] = mapped_column(String(255), nullable=False, comment="标题")
     content: Mapped[str] = mapped_column(Text, nullable=False, comment="内容")
+    images: Mapped[list[str]] = mapped_column(
+        ARRAY(String),
+        default=[],
+        nullable=False,
+        server_default=text("'{}'"),
+        comment="图片列表",
+    )
+    videos: Mapped[list[str]] = mapped_column(
+        ARRAY(String),
+        default=[],
+        nullable=False,
+        server_default=text("'{}'"),
+        comment="视频列表",
+    )
+    view_count: Mapped[int] = mapped_column(
+        Integer, default=0, nullable=False, server_default=text("0"), comment="浏览数"
+    )
     likes_count: Mapped[int] = mapped_column(
-        Integer, nullable=False, server_default=text("0"), comment="点赞数"
+        Integer, default=0, nullable=False, server_default=text("0"), comment="点赞数"
+    )
+    comment_count: Mapped[int] = mapped_column(
+        Integer, default=0, nullable=False, server_default=text("0"), comment="评论数"
+    )
+    is_top: Mapped[bool] = mapped_column(
+        Boolean,
+        default=False,
+        nullable=False,
+        server_default=text("false"),
+        comment="是否置顶",
+    )
+    is_hidden: Mapped[bool] = mapped_column(
+        Boolean,
+        default=False,
+        nullable=False,
+        server_default=text("false"),
+        comment="是否隐藏",
     )
     __table_args__ = (
         Index("idx_posts_group", "group_id", "created_at"),

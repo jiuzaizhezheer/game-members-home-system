@@ -11,23 +11,6 @@ content_hash = "sha256:b295a2a99f00bf8452a3075af10e8d3f4c762703ba83c130548b9df70
 requires_python = ">=3.12"
 
 [[package]]
-name = "alembic"
-version = "1.17.2"
-requires_python = ">=3.10"
-summary = "A database migration tool for SQLAlchemy."
-groups = ["default"]
-dependencies = [
-    "Mako",
-    "SQLAlchemy>=1.4.0",
-    "tomli; python_version < \"3.11\"",
-    "typing-extensions>=4.12",
-]
-files = [
-    {file = "alembic-1.17.2-py3-none-any.whl", hash = "sha256:f483dd1fe93f6c5d49217055e4d15b905b425b6af906746abb35b69c1996c4e6"},
-    {file = "alembic-1.17.2.tar.gz", hash = "sha256:bbe9751705c5e0f14877f02d46c53d10885e377e3d90eda810a016f9baa19e8e"},
-]
-
-[[package]]
 name = "amqp"
 version = "5.3.1"
 requires_python = ">=3.6"

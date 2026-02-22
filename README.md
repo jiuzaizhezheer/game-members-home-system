@@ -75,3 +75,6 @@ pdm run celery -A app.tasks.celery_worker worker --loglevel=info -P solo
 
 ### 启动 celery beat
 pdm run celery -A app.tasks.celery_worker beat --loglevel=info
+
+### 数据库补丁脚本(在虚拟环境中运行)
+pdm run python -m app.database.pgsql.table_structure_patch

@@ -30,7 +30,6 @@ class RoleChecker:
         ],
     ):
         token = token_credentials.credentials
-        # TODO: 后续会先校验是否在黑名单（Redis）中
         logger.info(f"access token: {token}")
         try:
             payload = decode_access_token(token)

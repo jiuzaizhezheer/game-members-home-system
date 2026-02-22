@@ -6,11 +6,12 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends
 
-from app.api.deps import get_current_user_id, get_user_service
+from app.api.deps import get_community_service, get_current_user_id, get_user_service
 from app.api.role import require_admin
-from app.common.constants import GET_SUCCESS
+from app.common.constants import GET_SUCCESS, POST_SUCCESS
 from app.schemas import SuccessResponse
-from app.services import UserService
+from app.schemas.community import GroupCreateIn, GroupDetailOut
+from app.services import CommunityService, UserService
 
 router = APIRouter(dependencies=[require_admin])
 
@@ -53,3 +54,20 @@ async def get_dashboard_stats():
             "pending_audits": 0,
         },
     )
+
+
+# --- Community Management ---
+
+
+@router.post(
+    "/community/groups", response_model=SuccessResponse[GroupDetailOut], status_code=201
+)
+async def create_community_group(
+    payload: GroupCreateIn,
+    service: Annotated[CommunityService, Depends(get_community_service)],
+):
+    """
+    管理员创建话题圈
+    """
+    data = await service.create_group(payload)
+    return SuccessResponse[GroupDetailOut](message=POST_SUCCESS, data=data)

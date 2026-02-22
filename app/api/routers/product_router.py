@@ -41,7 +41,8 @@ async def get_public_products(
     keyword: Annotated[str | None, Query(description="搜索关键字")] = None,
     category_id: Annotated[str | None, Query(description="分类ID")] = None,
     sort_by: Annotated[
-        Literal["price_asc", "price_desc", "newest"], Query(description="排序方式")
+        Literal["price_asc", "price_desc", "newest", "popularity_desc"],
+        Query(description="排序方式"),
     ] = "newest",
 ) -> SuccessResponse[ProductPublicListOut]:
     """获取公开商品列表"""
