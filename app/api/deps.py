@@ -5,6 +5,7 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from app.services import (
     AddressService,
+    AdminService,
     AuthService,
     CaptchaService,
     CartService,
@@ -21,6 +22,7 @@ from app.services import (
 from app.utils import decode_access_token
 
 # 单例模式
+_admin_service = AdminService()
 _user_service = UserService()
 _auth_service = AuthService()
 _captcha_service = CaptchaService()
@@ -34,6 +36,10 @@ _favorite_service = FavoriteService()
 _message_service = MessageService()
 _community_service = CommunityService()
 _promotion_service = PromotionService()
+
+
+def get_admin_service() -> AdminService:
+    return _admin_service
 
 
 def get_user_service() -> UserService:

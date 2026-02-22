@@ -290,5 +290,39 @@ async def table_structure_patch_10():
     await pg_engine.dispose()
 
 
+# 管理员操作日志表
+async def table_structure_patch_11():
+    async with pg_engine.begin() as conn:
+        print("Creating admin_logs table...")
+        await conn.execute(
+            text(
+                """
+            CREATE TABLE IF NOT EXISTS admin_logs (
+                id          uuid PRIMARY KEY,
+                admin_id    uuid NOT NULL,
+                action      varchar(64) NOT NULL,
+                target_type varchar(32) NOT NULL,
+                target_id   varchar(64) NOT NULL,
+                detail      jsonb,
+                created_at  timestamptz NOT NULL DEFAULT now()
+            );
+        """
+            )
+        )
+        await conn.execute(
+            text(
+                "CREATE INDEX IF NOT EXISTS idx_admin_logs_admin_id ON admin_logs(admin_id);"
+            )
+        )
+        await conn.execute(
+            text(
+                "CREATE INDEX IF NOT EXISTS idx_admin_logs_created_at ON admin_logs(created_at DESC);"
+            )
+        )
+        print("Done!")
+
+    await pg_engine.dispose()
+
+
 if __name__ == "__main__":
-    asyncio.run(table_structure_patch_10())
+    asyncio.run(table_structure_patch_11())

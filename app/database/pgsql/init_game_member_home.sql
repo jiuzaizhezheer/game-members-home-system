@@ -285,3 +285,18 @@ CREATE TABLE IF NOT EXISTS posts (
 );
 CREATE INDEX IF NOT EXISTS idx_posts_group ON posts(group_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_posts_user ON posts(user_id, created_at DESC);
+
+-- =========================
+-- 管理员操作日志
+-- =========================
+CREATE TABLE IF NOT EXISTS admin_logs (
+    id          uuid PRIMARY KEY,
+    admin_id    uuid NOT NULL,                  -- 逻辑外键: users.id (role=admin)
+    action      varchar(64) NOT NULL,           -- 操作类型，如 disable_user / verify_merchant
+    target_type varchar(32) NOT NULL,           -- 操作目标类型，如 user / merchant / product
+    target_id   varchar(64) NOT NULL,           -- 操作目标 ID（UUID 字符串）
+    detail      jsonb,                          -- 操作详情（可选）
+    created_at  timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_admin_logs_admin_id   ON admin_logs(admin_id);
+CREATE INDEX IF NOT EXISTS idx_admin_logs_created_at ON admin_logs(created_at DESC);

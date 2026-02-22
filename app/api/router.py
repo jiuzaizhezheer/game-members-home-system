@@ -2,7 +2,12 @@ from fastapi import APIRouter
 
 from app.api.routers import (
     address_router,
+    admin_community_router,
+    admin_log_router,
+    admin_merchant_router,
+    admin_product_router,
     admin_router,
+    admin_user_router,
     auth_router,
     cart_router,
     category_router,
@@ -49,3 +54,16 @@ api_routers.include_router(
     tags=["merchant-statistics"],
 )
 api_routers.include_router(admin_router, prefix="/admins", tags=["admin"])
+api_routers.include_router(
+    admin_community_router, prefix="/admins/community", tags=["admin-community"]
+)
+api_routers.include_router(
+    admin_user_router, prefix="/admins/users", tags=["admin-users"]
+)
+api_routers.include_router(
+    admin_merchant_router, prefix="/admins/merchants", tags=["admin-merchants"]
+)
+api_routers.include_router(
+    admin_product_router, prefix="/admins/products", tags=["admin-products"]
+)
+api_routers.include_router(admin_log_router, prefix="/admins/logs", tags=["admin-logs"])
