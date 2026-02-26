@@ -4,7 +4,12 @@ from typing import Annotated
 
 from fastapi import APIRouter, Body, Depends, Path, Query, status
 
-from app.api.deps import get_current_user_id, get_merchant_service, get_order_service
+from app.api.deps import (
+    get_current_user_id,
+    get_merchant_service,
+    get_order_refund_service,
+    get_order_service,
+)
 from app.api.role import require_merchant
 from app.common.constants import (
     GET_SUCCESS,
@@ -17,7 +22,13 @@ from app.schemas.merchant import (
     MerchantUpdateIn,
 )
 from app.schemas.order import OrderListOut, OrderShipIn
+from app.schemas.order_refund import (
+    OrderRefundAuditIn,
+    OrderRefundListOut,
+    OrderRefundOut,
+)
 from app.services import MerchantService, OrderService
+from app.services.order_refund_service import OrderRefundService
 
 merchant_router = APIRouter()
 
@@ -65,10 +76,11 @@ async def get_my_orders(
     page: Annotated[int, Query(ge=1)] = 1,
     page_size: Annotated[int, Query(ge=1, le=100)] = 10,
     status: Annotated[str | None, Query(description="订单状态")] = None,
+    refund_status: Annotated[str | None, Query(description="退款状态标记")] = None,
 ) -> SuccessResponse[OrderListOut]:
     """获取商家关联的订单列表"""
     items, total = await order_service.get_merchant_orders(
-        user_id, page, page_size, status=status
+        user_id, page, page_size, status=status, refund_status=refund_status
     )
     return SuccessResponse[OrderListOut](
         message=GET_SUCCESS,
@@ -90,3 +102,45 @@ async def ship_order(
     """订单发货"""
     await order_service.ship_order(id, payload)
     return SuccessResponse[None](message=ORDER_SHIP_SUCCESS)
+
+
+@merchant_router.get(
+    path="/orders/refunds",
+    dependencies=[require_merchant],
+    response_model=SuccessResponse[OrderRefundListOut],
+    status_code=status.HTTP_200_OK,
+)
+async def get_refunds(
+    user_id: Annotated[str, Depends(get_current_user_id)],
+    refund_service: Annotated[OrderRefundService, Depends(get_order_refund_service)],
+    page: Annotated[int, Query(ge=1)] = 1,
+    page_size: Annotated[int, Query(ge=1, le=100)] = 10,
+    status: Annotated[str | None, Query(description="退款状态")] = None,
+) -> SuccessResponse[OrderRefundListOut]:
+    """获取商家退款/售后列表"""
+    items, total = await refund_service.get_merchant_refunds(
+        user_id, page, page_size, status=status
+    )
+    return SuccessResponse[OrderRefundListOut](
+        message=GET_SUCCESS,
+        data=OrderRefundListOut(
+            items=items, total=total, page=page, page_size=page_size
+        ),
+    )
+
+
+@merchant_router.post(
+    path="/orders/refunds/{refund_id}/audit",
+    dependencies=[require_merchant],
+    response_model=SuccessResponse[OrderRefundOut],
+    status_code=status.HTTP_200_OK,
+)
+async def audit_refund(
+    user_id: Annotated[str, Depends(get_current_user_id)],
+    refund_id: Annotated[str, Path(description="退款记录ID")],
+    payload: Annotated[OrderRefundAuditIn, Body(description="审核结果")],
+    refund_service: Annotated[OrderRefundService, Depends(get_order_refund_service)],
+) -> SuccessResponse[OrderRefundOut]:
+    """商家审核订单退款维权"""
+    refund = await refund_service.audit_refund(user_id, refund_id, payload)
+    return SuccessResponse[OrderRefundOut](message="审批成功", data=refund)

@@ -86,6 +86,8 @@ class ProductPublicOut(BaseModel):
     favorites_count: int = Field(default=0, description="收藏数量")
     likes_count: int = Field(default=0, description="点赞数量")
     popularity_score: int = Field(default=0, description="综合热度评分")
+    rating: Decimal = Field(default=Decimal("5.0"), description="商品评分")
+    review_count: int = Field(default=0, description="评价数量")
 
     category_ids: list[uuid.UUID] = Field(
         default_factory=list, description="分类ID列表"

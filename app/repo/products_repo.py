@@ -15,6 +15,17 @@ async def get_by_id(session: AsyncSession, product_id: str) -> Product | None:
     return (await session.execute(stmt)).scalar_one_or_none()
 
 
+async def get_by_ids(
+    session: AsyncSession, product_ids: list[str | uuid.UUID]
+) -> list[Product]:
+    """根据多个ID获取商品列表"""
+    if not product_ids:
+        return []
+    stmt = select(Product).where(Product.id.in_(product_ids))
+    result = await session.execute(stmt)
+    return list(result.scalars().all())
+
+
 async def get_by_id_and_merchant(
     session: AsyncSession, product_id: str, merchant_id: str
 ) -> Product | None:

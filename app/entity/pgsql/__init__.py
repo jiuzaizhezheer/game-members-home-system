@@ -8,6 +8,7 @@ from .favorites import Favorite
 from .group_members import GroupMember
 from .merchants import Merchant
 from .order_items import OrderItem
+from .order_refunds import OrderRefund
 from .orders import Order
 from .payments import Payment
 from .posts import Post
@@ -35,6 +36,6 @@ __all__ = [
     "Product",
     "PromotionProduct",
     "Promotion",
-    "Promotion",
     "User",
+    "OrderRefund",
 ]

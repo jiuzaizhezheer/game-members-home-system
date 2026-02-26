@@ -87,6 +87,8 @@ CREATE TABLE IF NOT EXISTS products (
     sales_count     integer NOT NULL DEFAULT 0,
     favorites_count integer NOT NULL DEFAULT 0,
     likes_count     integer NOT NULL DEFAULT 0,
+    rating          numeric(3,2) NOT NULL DEFAULT 5.00,
+    review_count    integer NOT NULL DEFAULT 0,
     created_at      timestamptz NOT NULL DEFAULT now(),
     updated_at      timestamptz NOT NULL DEFAULT now(),
     CONSTRAINT chk_products_status CHECK (status IN ('on','off'))
@@ -96,6 +98,7 @@ CREATE INDEX IF NOT EXISTS idx_products_popularity ON products(popularity_score 
 CREATE INDEX IF NOT EXISTS idx_products_views ON products(views_count DESC);
 CREATE INDEX IF NOT EXISTS idx_products_favorites ON products(favorites_count DESC);
 CREATE INDEX IF NOT EXISTS idx_products_likes ON products(likes_count DESC);
+CREATE INDEX IF NOT EXISTS idx_products_rating ON products(rating DESC);
 CREATE INDEX IF NOT EXISTS idx_products_name ON products(name); -- 搜索建议优化
 
 -- =========================
@@ -158,6 +161,7 @@ CREATE TABLE IF NOT EXISTS orders (
     address_id      uuid, -- 逻辑外键: addresses.id
     order_no        varchar(32) NOT NULL UNIQUE,
     status          varchar(16) NOT NULL DEFAULT 'pending',
+    refund_status   varchar(16),                    -- 退款状态 (pending, approved, rejected)
     total_amount    numeric(12,2) NOT NULL CHECK (total_amount >= 0),
     paid_at         timestamptz,
     shipped_at      timestamptz,
@@ -166,7 +170,8 @@ CREATE TABLE IF NOT EXISTS orders (
     tracking_no     varchar(64),
     created_at      timestamptz NOT NULL DEFAULT now(),
     updated_at      timestamptz NOT NULL DEFAULT now(),
-    CONSTRAINT chk_orders_status CHECK (status IN ('pending','paid','shipped','completed','cancelled'))
+    CONSTRAINT chk_orders_status CHECK (status IN ('pending','paid','shipped','completed','cancelled','refunding','refunded','closed')),
+    CONSTRAINT chk_orders_refund_status CHECK (refund_status IS NULL OR refund_status IN ('pending','approved','rejected'))
 );
 CREATE INDEX IF NOT EXISTS idx_orders_user_created ON orders(user_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_orders_status ON orders(status); -- 运营/后台过滤优化
@@ -300,3 +305,20 @@ CREATE TABLE IF NOT EXISTS admin_logs (
 );
 CREATE INDEX IF NOT EXISTS idx_admin_logs_admin_id   ON admin_logs(admin_id);
 CREATE INDEX IF NOT EXISTS idx_admin_logs_created_at ON admin_logs(created_at DESC);
+
+-- =========================
+-- 订单退款售后实体
+-- =========================
+CREATE TABLE IF NOT EXISTS order_refunds (
+    id              uuid PRIMARY KEY,
+    order_id        uuid NOT NULL,                  -- 逻辑外键: orders.id
+    user_id         uuid NOT NULL,                  -- 逻辑外键: users.id
+    reason          varchar(255) NOT NULL,          -- 退款原因
+    amount          numeric(12,2) NOT NULL CHECK (amount >= 0),
+    status          varchar(16) NOT NULL DEFAULT 'pending',
+    merchant_reply  varchar(255),                   -- 商家审批回复
+    created_at      timestamptz NOT NULL DEFAULT now(),
+    updated_at      timestamptz NOT NULL DEFAULT now(),
+    CONSTRAINT chk_order_refunds_status CHECK (status IN ('pending', 'approved', 'rejected'))
+);
+CREATE INDEX IF NOT EXISTS idx_order_refunds_order ON order_refunds(order_id);

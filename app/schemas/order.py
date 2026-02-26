@@ -41,6 +41,7 @@ class OrderItemOut(BaseModel):
     quantity: int
     unit_price: Decimal
     product_image: str | None = Field(None, description="商品图片URL")
+    is_reviewed: bool = Field(False, description="是否已评价")
 
     model_config = {"from_attributes": True}
 
@@ -55,8 +56,12 @@ class OrderOut(BaseModel):
     address_id: uuid.UUID | None
     address: AddressOut | None = None
     created_at: datetime
+    paid_at: datetime | None = None
+    shipped_at: datetime | None = None
+    completed_at: datetime | None = None
     courier_name: str | None = None
     tracking_no: str | None = None
+    refund_status: str | None = Field(None, description="退款状态标记")
     items: list[OrderItemOut] = Field(default_factory=list)
 
     model_config = {"from_attributes": True}

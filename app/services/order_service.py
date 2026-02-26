@@ -135,6 +135,7 @@ class OrderService:
                 total_amount=new_order.total_amount,
                 address_id=new_order.address_id,
                 created_at=new_order.created_at,
+                refund_status=None,
                 items=[
                     OrderItemOut(
                         id=oi.id,
@@ -143,6 +144,7 @@ class OrderService:
                         unit_price=oi.unit_price,
                         product_name=oi.product.name,
                         product_image=oi.product.image_url,
+                        is_reviewed=False,  # 新订单肯定未评价
                     )
                     for oi in order_items_to_create
                 ],
@@ -221,6 +223,7 @@ class OrderService:
                 total_amount=new_order.total_amount,
                 address_id=new_order.address_id,
                 created_at=new_order.created_at,
+                refund_status=None,
                 items=[
                     OrderItemOut(
                         id=order_item.id,
@@ -229,6 +232,7 @@ class OrderService:
                         unit_price=order_item.unit_price,
                         product_name=product.name,
                         product_image=product.image_url,
+                        is_reviewed=False,
                     )
                 ],
             )
@@ -242,22 +246,33 @@ class OrderService:
                 session, user_id, page, page_size
             )
 
-            # 转换并加载明细 (实际应在 Repo 层优化加载)
             ordered_out = []
+            from app.repo.reviews_repo import reviews_repo
+
             for o in orders:
                 items = await orders_repo.get_items_by_order_id(session, o.id)
                 o_out = OrderOut.model_validate(o)
-                o_out.items = [
-                    OrderItemOut(
-                        id=i.id,
-                        product_id=i.product_id,
-                        quantity=i.quantity,
-                        unit_price=i.unit_price,
-                        product_name=i.product.name,  # 假如 lazy="selectin" 生效
-                        product_image=i.product.image_url,
+                oi_list = []
+                for i in items:
+                    is_reviewed = False
+                    if o.status == "completed":
+                        r = await reviews_repo.get_by_order_item(
+                            str(o.id), str(i.product_id)
+                        )
+                        is_reviewed = r is not None
+
+                    oi_list.append(
+                        OrderItemOut(
+                            id=i.id,
+                            product_id=i.product_id,
+                            quantity=i.quantity,
+                            unit_price=i.unit_price,
+                            product_name=i.product.name,
+                            product_image=i.product.image_url,
+                            is_reviewed=is_reviewed,
+                        )
                     )
-                    for i in items
-                ]
+                o_out.items = oi_list
                 ordered_out.append(o_out)
 
             return ordered_out, total
@@ -271,17 +286,30 @@ class OrderService:
 
             items = await orders_repo.get_items_by_order_id(session, order.id)
             out = OrderOut.model_validate(order)
-            out.items = [
-                OrderItemOut(
-                    id=i.id,
-                    product_id=i.product_id,
-                    quantity=i.quantity,
-                    unit_price=i.unit_price,
-                    product_name=i.product.name,
-                    product_image=i.product.image_url,
+
+            from app.repo.reviews_repo import reviews_repo
+
+            oi_list = []
+            for i in items:
+                is_reviewed = False
+                if order.status == "completed":
+                    r = await reviews_repo.get_by_order_item(
+                        str(order.id), str(i.product_id)
+                    )
+                    is_reviewed = r is not None
+
+                oi_list.append(
+                    OrderItemOut(
+                        id=i.id,
+                        product_id=i.product_id,
+                        quantity=i.quantity,
+                        unit_price=i.unit_price,
+                        product_name=i.product.name,
+                        product_image=i.product.image_url,
+                        is_reviewed=is_reviewed,
+                    )
                 )
-                for i in items
-            ]
+            out.items = oi_list
             return out
 
     async def cancel_order(self, user_id: str, order_id: str) -> None:
@@ -368,6 +396,7 @@ class OrderService:
         page: int = 1,
         page_size: int = 10,
         status: str | None = None,
+        refund_status: str | None = None,
     ) -> tuple[list[OrderOut], int]:
         """获取商家的订单列表"""
         async with get_pg() as session:
@@ -376,7 +405,12 @@ class OrderService:
                 raise BusinessError(detail="当前用户不是商家")
 
             orders, total = await orders_repo.get_list_by_merchant(
-                session, str(merchant.id), page, page_size, status=status
+                session,
+                str(merchant.id),
+                page,
+                page_size,
+                status=status,
+                refund_status=refund_status,
             )
 
             # 转换并加载明细
@@ -392,6 +426,7 @@ class OrderService:
                         unit_price=i.unit_price,
                         product_name=i.product.name,
                         product_image=i.product.image_url,
+                        is_reviewed=False,
                     )
                     for i in items
                 ]

@@ -19,6 +19,7 @@ from app.services import (
     PromotionService,
     UserService,
 )
+from app.services.order_refund_service import OrderRefundService
 from app.utils import decode_access_token
 
 # 单例模式
@@ -36,10 +37,15 @@ _favorite_service = FavoriteService()
 _message_service = MessageService()
 _community_service = CommunityService()
 _promotion_service = PromotionService()
+_order_refund_service = OrderRefundService()
 
 
 def get_admin_service() -> AdminService:
     return _admin_service
+
+
+def get_order_refund_service() -> OrderRefundService:
+    return _order_refund_service
 
 
 def get_user_service() -> UserService:

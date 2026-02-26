@@ -2,6 +2,7 @@ from .audit_logs import AuditLog
 from .comments import Comment
 from .messages import Message, MessageContent
 from .notifications import Notification
+from .product_reviews import ProductReview
 from .search_histories import SearchHistory
 from .user_activities import UserActivity
 
@@ -11,6 +12,7 @@ __all__ = [
     "Message",
     "MessageContent",
     "Notification",
+    "ProductReview",
     "SearchHistory",
     "UserActivity",
 ]

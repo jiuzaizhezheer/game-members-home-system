@@ -324,5 +324,118 @@ async def table_structure_patch_11():
     await pg_engine.dispose()
 
 
+# 售后退款表及订单状态扩展
+async def table_structure_patch_12():
+    async with pg_engine.begin() as conn:
+        print("Creating order_refunds table and updating orders status constraint...")
+
+        # 1. 创建 order_refunds
+        await conn.execute(
+            text(
+                """
+            CREATE TABLE IF NOT EXISTS order_refunds (
+                id              uuid PRIMARY KEY,
+                order_id        uuid NOT NULL,
+                user_id         uuid NOT NULL,
+                reason          varchar(255) NOT NULL,
+                amount          numeric(12,2) NOT NULL CHECK (amount >= 0),
+                status          varchar(16) NOT NULL DEFAULT 'pending',
+                merchant_reply  varchar(255),
+                created_at      timestamptz NOT NULL DEFAULT now(),
+                updated_at      timestamptz NOT NULL DEFAULT now(),
+                CONSTRAINT chk_order_refunds_status CHECK (status IN ('pending', 'approved', 'rejected'))
+            );
+            """
+            )
+        )
+        await conn.execute(
+            text(
+                "CREATE INDEX IF NOT EXISTS idx_order_refunds_order ON order_refunds(order_id);"
+            )
+        )
+
+        # 2. 扩展 orders 表 status 约束
+        # PostgreSQL 不支持直接修改 CHECK 约束，通常需要先删再加
+        # asyncpg 不支持在一个 execute 中执行多个命令，需要分开
+        await conn.execute(
+            text("ALTER TABLE orders DROP CONSTRAINT IF EXISTS chk_orders_status;")
+        )
+        await conn.execute(
+            text(
+                """
+            ALTER TABLE orders ADD CONSTRAINT chk_orders_status
+            CHECK (status IN ('pending','paid','shipped','completed','cancelled','refunding','refunded','closed'));
+            """
+            )
+        )
+        print("Done!")
+
+    await pg_engine.dispose()
+
+
+# 订单表增加退款状态标记 (新增 refund_status)，并修复状态约束
+async def table_structure_patch_13():
+    async with pg_engine.begin() as conn:
+        print("Adding refund_status to orders and fixing constraints...")
+
+        # 1. 增加 refund_status 字段
+        await conn.execute(
+            text(
+                "ALTER TABLE orders ADD COLUMN IF NOT EXISTS refund_status VARCHAR(16);"
+            )
+        )
+
+        # 2. 增加 refund_status 约束
+        await conn.execute(
+            text(
+                "ALTER TABLE orders DROP CONSTRAINT IF EXISTS chk_orders_refund_status;"
+            )
+        )
+        await conn.execute(
+            text(
+                "ALTER TABLE orders ADD CONSTRAINT chk_orders_refund_status CHECK (refund_status IS NULL OR refund_status IN ('pending', 'approved', 'rejected'));"
+            )
+        )
+
+        # 3. 修复 status 约束 (移除临时的 rejected)
+        await conn.execute(
+            text("ALTER TABLE orders DROP CONSTRAINT IF EXISTS chk_orders_status;")
+        )
+        await conn.execute(
+            text(
+                """
+            ALTER TABLE orders ADD CONSTRAINT chk_orders_status
+            CHECK (status IN ('pending','paid','shipped','completed','cancelled','refunding','refunded','closed'));
+            """
+            )
+        )
+        print("Done!")
+
+    await pg_engine.dispose()
+
+
+async def table_structure_patch_14():
+    """给 products 表添加 rating 和 review_count 字段，用于商品评价系统"""
+    async with pg_engine.begin() as conn:
+        print("Adding rating and review_count to products...")
+        try:
+            await conn.execute(
+                text(
+                    "ALTER TABLE products ADD COLUMN IF NOT EXISTS rating NUMERIC(3,2) NOT NULL DEFAULT 5.00;"
+                )
+            )
+            await conn.execute(
+                text(
+                    "ALTER TABLE products ADD COLUMN IF NOT EXISTS review_count INTEGER NOT NULL DEFAULT 0;"
+                )
+            )
+            print("Done!")
+        except Exception as e:
+            print(f"Failed to apply patch 14: {e}")
+            raise
+
+    await pg_engine.dispose()
+
+
 if __name__ == "__main__":
-    asyncio.run(table_structure_patch_11())
+    asyncio.run(table_structure_patch_14())
