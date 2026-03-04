@@ -437,5 +437,262 @@ async def table_structure_patch_14():
     await pg_engine.dispose()
 
 
+async def table_structure_patch_15():
+    """创建首页轮播图管理表 (banners)"""
+    async with pg_engine.begin() as conn:
+        print("Creating banners table...")
+        await conn.execute(
+            text(
+                """
+            CREATE TABLE IF NOT EXISTS banners (
+                id          uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+                title       varchar(128) NOT NULL,
+                image_url   varchar(512) NOT NULL,
+                link_url    varchar(512),
+                sort_order  integer NOT NULL DEFAULT 0,
+                is_active   boolean NOT NULL DEFAULT true,
+                created_at  timestamptz NOT NULL DEFAULT now(),
+                updated_at  timestamptz NOT NULL DEFAULT now()
+            );
+        """
+            )
+        )
+        await conn.execute(text("COMMENT ON TABLE banners IS '首页轮播图管理表';"))
+        print("Done!")
+
+    await pg_engine.dispose()
+
+
+async def table_structure_patch_16():
+    """创建订单物流追踪记录表 (order_logistics)"""
+    async with pg_engine.begin() as conn:
+        print("Creating order_logistics table...")
+        await conn.execute(
+            text(
+                """
+            CREATE TABLE IF NOT EXISTS order_logistics (
+                id              uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+                order_id        uuid NOT NULL,
+                status_message  varchar(256) NOT NULL,
+                location        varchar(128),
+                log_time        timestamptz NOT NULL DEFAULT now(),
+                created_at      timestamptz NOT NULL DEFAULT now(),
+                updated_at      timestamptz NOT NULL DEFAULT now()
+            );
+        """
+            )
+        )
+        await conn.execute(
+            text("COMMENT ON TABLE order_logistics IS '订单物流追踪记录表';")
+        )
+        await conn.execute(
+            text(
+                "CREATE INDEX IF NOT EXISTS idx_order_logistics_order ON order_logistics(order_id);"
+            )
+        )
+        print("Done!")
+
+    await pg_engine.dispose()
+
+
+async def table_structure_patch_17():
+    """会员积分与成长体系：更新 users 表并创建 point_logs 表"""
+    async with pg_engine.begin() as conn:
+        print("Updating users table for points and growth...")
+        await conn.execute(
+            text(
+                """
+            ALTER TABLE users
+            ADD COLUMN IF NOT EXISTS points INTEGER NOT NULL DEFAULT 0,
+            ADD COLUMN IF NOT EXISTS total_spent NUMERIC(12, 2) NOT NULL DEFAULT 0.00,
+            ADD COLUMN IF NOT EXISTS level VARCHAR(16) NOT NULL DEFAULT 'bronze';
+            """
+            )
+        )
+
+        print("Creating point_logs table...")
+        await conn.execute(
+            text(
+                """
+            CREATE TABLE IF NOT EXISTS point_logs (
+                id              uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+                user_id         uuid NOT NULL,
+                change_amount   integer NOT NULL,
+                balance_after   integer NOT NULL,
+                reason          varchar(255) NOT NULL,
+                related_id      varchar(64),
+                created_at      timestamptz NOT NULL DEFAULT now(),
+                updated_at      timestamptz NOT NULL DEFAULT now()
+            );
+            """
+            )
+        )
+        await conn.execute(
+            text(
+                "ALTER TABLE point_logs ADD COLUMN IF NOT EXISTS updated_at timestamptz NOT NULL DEFAULT now();"
+            )
+        )
+        await conn.execute(text("COMMENT ON TABLE point_logs IS '用户积分变动日志表';"))
+        await conn.execute(
+            text(
+                "CREATE INDEX IF NOT EXISTS idx_point_logs_user ON point_logs(user_id);"
+            )
+        )
+        print("Done!")
+
+    await pg_engine.dispose()
+
+
+async def table_structure_patch_18():
+    """会员积分精度优化：将积分相关字段由 INTEGER 修改为 NUMERIC(12, 2)"""
+    async with pg_engine.begin() as conn:
+        print("Upgrading points columns to NUMERIC(12, 2) for precision...")
+
+        # 1. 修改 users 表的 points
+        await conn.execute(
+            text(
+                "ALTER TABLE users ALTER COLUMN points TYPE NUMERIC(12, 2) USING points::NUMERIC(12, 2);"
+            )
+        )
+
+        # 2. 修改 point_logs 表的 change_amount 和 balance_after
+        await conn.execute(
+            text(
+                "ALTER TABLE point_logs ALTER COLUMN change_amount TYPE NUMERIC(12, 2) USING change_amount::NUMERIC(12, 2);"
+            )
+        )
+        await conn.execute(
+            text(
+                "ALTER TABLE point_logs ALTER COLUMN balance_after TYPE NUMERIC(12, 2) USING balance_after::NUMERIC(12, 2);"
+            )
+        )
+
+        print("Done!")
+
+    await pg_engine.dispose()
+
+
+async def table_structure_patch_19():
+    """优惠券系统：创建 coupons 和 user_coupons 表"""
+    async with pg_engine.begin() as conn:
+        print("Creating coupons table...")
+        await conn.execute(
+            text(
+                """
+            CREATE TABLE IF NOT EXISTS coupons (
+                id              uuid PRIMARY KEY,
+                merchant_id     uuid,
+                title           varchar(128) NOT NULL,
+                description     varchar(256),
+                discount_type   varchar(16) NOT NULL,
+                discount_value  numeric(12, 2) NOT NULL,
+                min_spend       numeric(12, 2) NOT NULL DEFAULT 0.00,
+                total_quantity  integer NOT NULL DEFAULT 0,
+                issued_count    integer NOT NULL DEFAULT 0,
+                start_at        timestamptz NOT NULL,
+                end_at          timestamptz NOT NULL,
+                status          varchar(16) NOT NULL DEFAULT 'active',
+                created_at      timestamptz NOT NULL DEFAULT now(),
+                updated_at      timestamptz NOT NULL DEFAULT now(),
+                CONSTRAINT chk_coupons_discount_value CHECK (discount_value >= 0),
+                CONSTRAINT chk_coupons_min_spend CHECK (min_spend >= 0),
+                CONSTRAINT chk_coupons_total_quantity CHECK (total_quantity >= 0),
+                CONSTRAINT chk_coupons_issued_count CHECK (issued_count >= 0)
+            );
+            """
+            )
+        )
+        await conn.execute(text("COMMENT ON TABLE coupons IS '优惠券配置表';"))
+        await conn.execute(
+            text(
+                "CREATE INDEX IF NOT EXISTS idx_coupons_merchant ON coupons(merchant_id);"
+            )
+        )
+
+        print("Creating user_coupons table...")
+        await conn.execute(
+            text(
+                """
+            CREATE TABLE IF NOT EXISTS user_coupons (
+                id              uuid PRIMARY KEY,
+                user_id         uuid NOT NULL,
+                coupon_id       uuid NOT NULL,
+                order_id        uuid,
+                status          varchar(16) NOT NULL DEFAULT 'unused',
+                used_at         timestamptz,
+                created_at      timestamptz NOT NULL DEFAULT now(),
+                updated_at      timestamptz NOT NULL DEFAULT now(),
+                CONSTRAINT chk_user_coupons_status CHECK (status IN ('unused', 'used', 'expired'))
+            );
+            """
+            )
+        )
+        await conn.execute(
+            text("COMMENT ON TABLE user_coupons IS '用户领取的优惠券清单';")
+        )
+        await conn.execute(
+            text(
+                "CREATE INDEX IF NOT EXISTS idx_user_coupons_user_status ON user_coupons(user_id, status);"
+            )
+        )
+        await conn.execute(
+            text(
+                "CREATE INDEX IF NOT EXISTS idx_user_coupons_coupon ON user_coupons(coupon_id);"
+            )
+        )
+
+        print("Done!")
+
+    await pg_engine.dispose()
+
+
+async def table_structure_patch_20():
+    """订单表增加优惠券关联及扣减金额字段"""
+    async with pg_engine.begin() as conn:
+        print("Adding coupon columns to orders table...")
+        await conn.execute(
+            text(
+                """
+            ALTER TABLE orders
+            ADD COLUMN IF NOT EXISTS user_coupon_id UUID,
+            ADD COLUMN IF NOT EXISTS coupon_amount NUMERIC(12, 2);
+            """
+            )
+        )
+        await conn.execute(
+            text("COMMENT ON COLUMN orders.user_coupon_id IS '使用的优惠券记录ID';")
+        )
+        await conn.execute(
+            text("COMMENT ON COLUMN orders.coupon_amount IS '优惠券抵扣金额';")
+        )
+        print("Done!")
+
+    await pg_engine.dispose()
+
+
+async def table_structure_patch_21():
+    """订单表增加积分抵扣金额及消耗积分数量字段"""
+    async with pg_engine.begin() as conn:
+        print("Adding point deduction columns to orders table...")
+        await conn.execute(
+            text(
+                """
+            ALTER TABLE orders
+            ADD COLUMN IF NOT EXISTS point_deduction_amount NUMERIC(12, 2),
+            ADD COLUMN IF NOT EXISTS points_consumed NUMERIC(12, 2);
+            """
+            )
+        )
+        await conn.execute(
+            text("COMMENT ON COLUMN orders.point_deduction_amount IS '积分抵扣金额';")
+        )
+        await conn.execute(
+            text("COMMENT ON COLUMN orders.points_consumed IS '消耗积分数量';")
+        )
+        print("Done!")
+
+    await pg_engine.dispose()
+
+
 if __name__ == "__main__":
-    asyncio.run(table_structure_patch_14())
+    asyncio.run(table_structure_patch_21())

@@ -2,7 +2,9 @@ from fastapi import APIRouter
 
 from app.api.routers import (
     address_router,
+    admin_banner_router,
     admin_community_router,
+    admin_coupon_router,
     admin_log_router,
     admin_merchant_router,
     admin_product_router,
@@ -14,6 +16,7 @@ from app.api.routers import (
     category_router,
     common_router,
     community_router,
+    coupon_router,
     favorite_router,
     merchant_community_router,
     merchant_promotion_router,
@@ -42,6 +45,7 @@ api_routers.include_router(order_router, prefix="/orders", tags=["orders"])
 api_routers.include_router(favorite_router, prefix="/favorites", tags=["favorites"])
 api_routers.include_router(message_router, prefix="/messages", tags=["messages"])
 api_routers.include_router(review_router, prefix="/reviews", tags=["reviews"])
+api_routers.include_router(coupon_router, prefix="/coupons", tags=["coupons"])
 api_routers.include_router(community_router, prefix="/communities", tags=["community"])
 api_routers.include_router(
     merchant_community_router,
@@ -73,5 +77,11 @@ api_routers.include_router(
 )
 api_routers.include_router(
     admin_review_router, prefix="/admins/reviews", tags=["admin-reviews"]
+)
+api_routers.include_router(
+    admin_banner_router, prefix="/admins/banners", tags=["admin-banners"]
+)
+api_routers.include_router(
+    admin_coupon_router, prefix="/admins/coupons", tags=["admin-coupons"]
 )
 api_routers.include_router(admin_log_router, prefix="/admins/logs", tags=["admin-logs"])

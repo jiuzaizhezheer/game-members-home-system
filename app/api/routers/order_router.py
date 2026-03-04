@@ -6,6 +6,7 @@ from fastapi import APIRouter, Body, Depends, Path, Query, status
 
 from app.api.deps import (
     get_current_user_id,
+    get_logistics_service,
     get_order_refund_service,
     get_order_service,
 )
@@ -17,10 +18,11 @@ from app.common.constants import (
     ORDER_RECEIPT_SUCCESS,
 )
 from app.schemas import SuccessResponse
+from app.schemas.logistics import OrderLogisticsOut
 from app.schemas.order import BuyNowIn, OrderCreateIn, OrderListOut, OrderOut
 from app.schemas.order_refund import OrderRefundApplyIn, OrderRefundOut
+from app.services import LogisticsService, OrderService
 from app.services.order_refund_service import OrderRefundService
-from app.services.order_service import OrderService
 
 order_router = APIRouter()
 
@@ -172,3 +174,18 @@ async def get_refund_detail(
     """获取退款详情与进度"""
     refund = await refund_service.get_refund_detail(user_id, id)
     return SuccessResponse[OrderRefundOut](message="获取成功", data=refund)
+
+
+@order_router.get(
+    path="/{id}/logistics",
+    dependencies=[require_member_or_merchant],
+    response_model=SuccessResponse[OrderLogisticsOut],
+    status_code=status.HTTP_200_OK,
+)
+async def get_order_logistics(
+    id: Annotated[str, Path(description="订单ID")],
+    logistics_service: Annotated[LogisticsService, Depends(get_logistics_service)],
+) -> SuccessResponse[OrderLogisticsOut]:
+    """获取订单物流轨迹"""
+    data = await logistics_service.get_order_tracking(id)
+    return SuccessResponse[OrderLogisticsOut](message="获取成功", data=data)

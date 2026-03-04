@@ -1,4 +1,8 @@
+from decimal import Decimal
+
 from app.common.constants import (
+    MEMBERSHIP_LEVEL_NAMES,
+    MEMBERSHIP_THRESHOLDS,
     NEW_PASSWORD_SAME_AS_OLD,
     OLD_PASSWORD_ERROR,
     USER_NOT_FOUND,
@@ -7,7 +11,13 @@ from app.common.errors import NotFoundError, ValidationError
 from app.database.pgsql import get_pg
 from app.entity.pgsql import User
 from app.repo import users_repo
-from app.schemas import UserChangePasswordIn, UserOut, UserProfileUpdateIn
+from app.schemas import (
+    PointLogListOut,
+    PointLogOut,
+    UserChangePasswordIn,
+    UserOut,
+    UserProfileUpdateIn,
+)
 from app.utils import hash_password, verify_password
 
 
@@ -23,7 +33,26 @@ class UserService:
     async def get_profile(self, user_id: str) -> UserOut:
         """获取用户个人资料"""
         user = await self.get_by_id(user_id)
-        return UserOut.model_validate(user)
+        user_out = UserOut.model_validate(user)
+
+        # 计算下一等级进度
+        total_spent = user.total_spent
+
+        # 找出比当前等级更高的下一个等级
+        thresholds = sorted(MEMBERSHIP_THRESHOLDS.items(), key=lambda x: x[1])
+        next_level_name = None
+        next_level_threshold = None
+
+        for level_key, threshold in thresholds:
+            if threshold > total_spent:
+                next_level_name = MEMBERSHIP_LEVEL_NAMES.get(level_key)
+                next_level_threshold = Decimal(str(threshold))
+                break
+
+        user_out.next_level_name = next_level_name
+        user_out.next_level_threshold = next_level_threshold
+
+        return user_out
 
     async def update_profile(
         self, user_id: str, payload: UserProfileUpdateIn
@@ -59,3 +88,20 @@ class UserService:
 
             new_password_hash = hash_password(payload.new_password)
             await users_repo.update_password_hash(session, user, new_password_hash)
+
+    async def get_point_history(
+        self, user_id: str, page: int = 1, page_size: int = 10
+    ) -> PointLogListOut:
+        """获取用户积分记录"""
+        import uuid
+
+        from app.services.point_service import point_service
+
+        async with get_pg() as session:
+            logs, total = await point_service.get_history(
+                session, uuid.UUID(user_id), page, page_size
+            )
+            log_items = [PointLogOut.model_validate(log) for log in logs]
+            return PointLogListOut(
+                items=log_items, total=total, page=page, page_size=page_size
+            )

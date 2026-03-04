@@ -1,5 +1,5 @@
 import uuid
-from datetime import datetime
+from datetime import UTC, datetime
 from decimal import Decimal
 from typing import Literal
 
@@ -78,10 +78,31 @@ class PromotionOut(PromotionBase):
 
     id: uuid.UUID
     merchant_id: uuid.UUID
+    display_status: Literal["active", "inactive", "pending", "expired"] = Field(
+        "active",
+        description="展示状态: active-进行中, inactive-已停用, pending-未开始, expired-已过期",
+    )
     created_at: datetime
     updated_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
+
+    @model_validator(mode="after")
+    def compute_display_status(self) -> "PromotionOut":
+        if self.status == "inactive":
+            self.display_status = "inactive"
+            return self
+
+        # 处理时区一致性：如果 start_at 是有时区的，now 也需要有时区
+        now = datetime.now(UTC) if self.start_at.tzinfo else datetime.now()
+
+        if now < self.start_at:
+            self.display_status = "pending"
+        elif now > self.end_at:
+            self.display_status = "expired"
+        else:
+            self.display_status = "active"
+        return self
 
 
 class PromotionSimpleOut(BaseModel):

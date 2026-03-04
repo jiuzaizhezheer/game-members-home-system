@@ -2,7 +2,7 @@
 
 from typing import Annotated
 
-from fastapi import APIRouter, Body, Depends, Path, Query, status
+from fastapi import APIRouter, BackgroundTasks, Body, Depends, Path, Query, status
 
 from app.api.deps import (
     get_current_user_id,
@@ -98,9 +98,10 @@ async def ship_order(
     id: Annotated[str, Path(description="订单ID")],
     payload: Annotated[OrderShipIn, Body(description="物流信息")],
     order_service: Annotated[OrderService, Depends(get_order_service)],
+    background_tasks: BackgroundTasks,
 ) -> SuccessResponse[None]:
     """订单发货"""
-    await order_service.ship_order(id, payload)
+    await order_service.ship_order(id, payload, background_tasks)
     return SuccessResponse[None](message=ORDER_SHIP_SUCCESS)
 
 

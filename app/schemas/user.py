@@ -1,5 +1,6 @@
 import uuid
 from datetime import datetime
+from decimal import Decimal
 
 from pydantic import BaseModel, EmailStr, Field, field_validator, model_validator
 
@@ -39,9 +40,34 @@ class UserOut(BaseModel):
     email: EmailStr = Field(description="邮箱")
     role: RoleEnum = Field(description="角色")
     avatar_url: str | None = Field(description="头像地址")
+    points: Decimal = Field(description="会员积分")
+    total_spent: Decimal = Field(description="累计消费金额")
+    level: str = Field(description="会员等级")
+    next_level_threshold: Decimal | None = Field(
+        None, description="下一等级需达到的金额"
+    )
+    next_level_name: str | None = Field(None, description="下一等级名称")
     created_at: datetime = Field(description="创建时间")
 
     model_config = {"from_attributes": True}
+
+
+class PointLogOut(BaseModel):
+    id: uuid.UUID
+    change_amount: Decimal
+    balance_after: Decimal
+    reason: str
+    related_id: str | None
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class PointLogListOut(BaseModel):
+    items: list[PointLogOut]
+    total: int
+    page: int
+    page_size: int
 
 
 class UserProfileUpdateIn(BaseModel):

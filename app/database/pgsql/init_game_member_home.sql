@@ -16,12 +16,18 @@ CREATE TABLE IF NOT EXISTS users (
     role            varchar(16) NOT NULL DEFAULT 'member',
     is_active       boolean NOT NULL DEFAULT true,
     avatar_url      varchar(512),
+    points          numeric(12,2) NOT NULL DEFAULT 0.00,
+    total_spent     numeric(12,2) NOT NULL DEFAULT 0.00,
+    level           varchar(16) NOT NULL DEFAULT 'bronze',
     created_at      timestamptz NOT NULL DEFAULT now(),
     updated_at      timestamptz NOT NULL DEFAULT now(),
     CONSTRAINT chk_users_role CHECK (role IN ('member','merchant','admin')),
     CONSTRAINT uq_users_username_role UNIQUE (username, role),
     CONSTRAINT uq_users_email_role UNIQUE (email, role)
 );
+COMMENT ON COLUMN users.points IS '会员积分';
+COMMENT ON COLUMN users.total_spent IS '累计消费金额';
+COMMENT ON COLUMN users.level IS '会员等级';
 
 -- =========================
 -- 商家实体
@@ -163,6 +169,10 @@ CREATE TABLE IF NOT EXISTS orders (
     status          varchar(16) NOT NULL DEFAULT 'pending',
     refund_status   varchar(16),                    -- 退款状态 (pending, approved, rejected)
     total_amount    numeric(12,2) NOT NULL CHECK (total_amount >= 0),
+    user_coupon_id  uuid, -- 逻辑外键: user_coupons.id
+    coupon_amount   numeric(12,2),                  -- 优惠券抵扣金额
+    point_deduction_amount numeric(12,2),           -- 积分抵扣金额
+    points_consumed numeric(12,2),                  -- 消耗积分数量
     paid_at         timestamptz,
     shipped_at      timestamptz,
     completed_at    timestamptz,
@@ -173,6 +183,10 @@ CREATE TABLE IF NOT EXISTS orders (
     CONSTRAINT chk_orders_status CHECK (status IN ('pending','paid','shipped','completed','cancelled','refunding','refunded','closed')),
     CONSTRAINT chk_orders_refund_status CHECK (refund_status IS NULL OR refund_status IN ('pending','approved','rejected'))
 );
+COMMENT ON COLUMN orders.user_coupon_id IS '使用的优惠券记录ID';
+COMMENT ON COLUMN orders.coupon_amount IS '优惠券抵扣金额';
+COMMENT ON COLUMN orders.point_deduction_amount IS '积分抵扣金额';
+COMMENT ON COLUMN orders.points_consumed IS '消耗积分数量';
 CREATE INDEX IF NOT EXISTS idx_orders_user_created ON orders(user_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_orders_status ON orders(status); -- 运营/后台过滤优化
 
@@ -238,6 +252,47 @@ CREATE TABLE IF NOT EXISTS promotion_products (
     updated_at      timestamptz NOT NULL DEFAULT now(),
     PRIMARY KEY (promotion_id, product_id)
 );
+
+-- =========================
+-- 优惠券系统
+-- =========================
+CREATE TABLE IF NOT EXISTS coupons (
+    id              uuid PRIMARY KEY,
+    merchant_id     uuid, -- 逻辑外键: merchants.id (为空表示平台券)
+    title           varchar(128) NOT NULL,
+    description     varchar(256),
+    discount_type   varchar(16) NOT NULL,
+    discount_value  numeric(12, 2) NOT NULL,
+    min_spend       numeric(12, 2) NOT NULL DEFAULT 0.00,
+    total_quantity  integer NOT NULL DEFAULT 0,
+    issued_count    integer NOT NULL DEFAULT 0,
+    start_at        timestamptz NOT NULL,
+    end_at          timestamptz NOT NULL,
+    status          varchar(16) NOT NULL DEFAULT 'active',
+    created_at      timestamptz NOT NULL DEFAULT now(),
+    updated_at      timestamptz NOT NULL DEFAULT now(),
+    CONSTRAINT chk_coupons_discount_value CHECK (discount_value >= 0),
+    CONSTRAINT chk_coupons_min_spend CHECK (min_spend >= 0),
+    CONSTRAINT chk_coupons_total_quantity CHECK (total_quantity >= 0),
+    CONSTRAINT chk_coupons_issued_count CHECK (issued_count >= 0)
+);
+COMMENT ON TABLE coupons IS '优惠券配置表';
+CREATE INDEX IF NOT EXISTS idx_coupons_merchant ON coupons(merchant_id);
+
+CREATE TABLE IF NOT EXISTS user_coupons (
+    id              uuid PRIMARY KEY,
+    user_id         uuid NOT NULL, -- 逻辑外键: users.id
+    coupon_id       uuid NOT NULL, -- 逻辑外键: coupons.id
+    order_id        uuid, -- 逻辑外键: orders.id
+    status          varchar(16) NOT NULL DEFAULT 'unused',
+    used_at         timestamptz,
+    created_at      timestamptz NOT NULL DEFAULT now(),
+    updated_at      timestamptz NOT NULL DEFAULT now(),
+    CONSTRAINT chk_user_coupons_status CHECK (status IN ('unused', 'used', 'expired'))
+);
+COMMENT ON TABLE user_coupons IS '用户领取的优惠券清单';
+CREATE INDEX IF NOT EXISTS idx_user_coupons_user_status ON user_coupons(user_id, status);
+CREATE INDEX IF NOT EXISTS idx_user_coupons_coupon ON user_coupons(coupon_id);
 
 
 -- =========================
@@ -322,3 +377,50 @@ CREATE TABLE IF NOT EXISTS order_refunds (
     CONSTRAINT chk_order_refunds_status CHECK (status IN ('pending', 'approved', 'rejected'))
 );
 CREATE INDEX IF NOT EXISTS idx_order_refunds_order ON order_refunds(order_id);
+
+-- =========================
+-- 首页轮播图管理实体
+-- =========================
+CREATE TABLE IF NOT EXISTS banners (
+    id          uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    title       varchar(128) NOT NULL,
+    image_url   varchar(512) NOT NULL,
+    link_url    varchar(512),
+    sort_order  integer NOT NULL DEFAULT 0,
+    is_active   boolean NOT NULL DEFAULT true,
+    created_at  timestamptz NOT NULL DEFAULT now(),
+    updated_at  timestamptz NOT NULL DEFAULT now()
+);
+COMMENT ON TABLE banners IS '首页轮播图管理表';
+
+-- =========================
+-- 订单物流追踪记录实体
+-- =========================
+CREATE TABLE IF NOT EXISTS order_logistics (
+    id              uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    order_id        uuid NOT NULL,                  -- 逻辑外键: orders.id
+    status_message  varchar(256) NOT NULL,          -- 状态描述
+    location        varchar(128),                   -- 地理位置（城市/站点）
+    log_time        timestamptz NOT NULL DEFAULT now(),
+    created_at      timestamptz NOT NULL DEFAULT now(),
+    updated_at      timestamptz NOT NULL DEFAULT now()
+);
+COMMENT ON TABLE order_logistics IS '订单物流追踪记录表';
+CREATE INDEX IF NOT EXISTS idx_order_logistics_order ON order_logistics(order_id);
+
+-- =========================
+-- 会员积分变动日志记录实体
+-- =========================
+CREATE TABLE IF NOT EXISTS point_logs (
+    id              uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id         uuid NOT NULL,                  -- 逻辑外键: users.id
+    change_amount   numeric(12,2) NOT NULL,         -- 变动积分数量
+    balance_after   numeric(12,2) NOT NULL,         -- 变动后余额
+    reason          varchar(255) NOT NULL,          -- 变动原因
+    related_id      varchar(64),                    -- 关联业务ID (如订单ID)
+    created_at      timestamptz NOT NULL DEFAULT now(),
+    updated_at      timestamptz NOT NULL DEFAULT now()
+);
+COMMENT ON TABLE point_logs IS '会员积分变动日志记录表';
+CREATE INDEX IF NOT EXISTS idx_point_logs_user ON point_logs(user_id);
+CREATE INDEX IF NOT EXISTS idx_point_logs_created ON point_logs(created_at DESC);

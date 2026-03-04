@@ -2,6 +2,7 @@
 
 import uuid
 from datetime import UTC, datetime
+from decimal import Decimal
 
 from app.common.errors import BusinessError, NotFoundError
 from app.database.pgsql import get_pg
@@ -139,6 +140,36 @@ class OrderRefundService:
                     p = await products_repo.get_by_id(session, str(item.product_id))
                     if p and p.sales_count >= item.quantity:
                         p.sales_count -= item.quantity
+
+                # 归还积分 (如果使用了积分抵扣)
+                if order.points_consumed and order.points_consumed > 0:
+                    from app.services.point_service import point_service
+
+                    await point_service.grant_points(
+                        session,
+                        order.user_id,
+                        order.points_consumed,
+                        reason=f"订单退款返还积分: {order.order_no}",
+                        related_id=str(order.id),
+                    )
+
+                # 2. 扣回奖励积分 (支付时发放的部分)
+                from app.services.point_service import point_service
+
+                base_amount = order.total_amount + (order.coupon_amount or Decimal("0"))
+                points_to_clawback = base_amount / Decimal("10")
+                if points_to_clawback > 0:
+                    await point_service.consume_points(
+                        session,
+                        order.user_id,
+                        points_to_clawback,
+                        reason=f"订单退款扣回奖励积分: {order.order_no}",
+                        related_id=str(order.id),
+                        allow_negative=True,
+                    )
+
+                # 3. 回滚成长值 (累计消费)
+                await point_service.update_growth(session, order.user_id, -base_amount)
             else:
                 # 拒绝退款 -> 恢复到原状态，但标记为已打回
                 refund.status = "rejected"

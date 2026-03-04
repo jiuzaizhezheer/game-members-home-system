@@ -1,5 +1,7 @@
 from .address_router import address_router
+from .admin_banner_router import router as admin_banner_router
 from .admin_community_router import admin_community_router
+from .admin_coupon_router import router as admin_coupon_router
 from .admin_log_router import admin_log_router
 from .admin_merchant_router import admin_merchant_router
 from .admin_product_router import admin_product_router
@@ -11,6 +13,7 @@ from .cart_router import cart_router
 from .category_router import category_router
 from .common_router import common_router
 from .community_router import community_router
+from .coupon_router import coupon_router
 from .favorite_router import favorite_router
 from .merchant_community_router import merchant_community_router
 from .merchant_promotion_router import merchant_promotion_router
@@ -24,6 +27,7 @@ from .user_router import user_router
 
 __all__ = [
     "admin_community_router",
+    "admin_coupon_router",
     "admin_log_router",
     "admin_merchant_router",
     "admin_product_router",
@@ -34,6 +38,7 @@ __all__ = [
     "category_router",
     "common_router",
     "community_router",
+    "coupon_router",
     "favorite_router",
     "merchant_community_router",
     "merchant_promotion_router",
@@ -43,6 +48,7 @@ __all__ = [
     "review_router",
     "user_router",
     "cart_router",
+    "admin_banner_router",
     "address_router",
     "order_router",
     "message_router",

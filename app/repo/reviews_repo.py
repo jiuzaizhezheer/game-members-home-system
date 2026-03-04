@@ -20,15 +20,15 @@ class ReviewsRepo:
     ) -> ProductReview | None:
         """查询某订单下的某个商品是否已被评价 (防重)"""
         return await ProductReview.find_one(
-            Eq(ProductReview.order_id, uuid.UUID(order_id)),
-            Eq(ProductReview.product_id, uuid.UUID(product_id)),
+            Eq("order_id", uuid.UUID(order_id)),
+            Eq("product_id", uuid.UUID(product_id)),
         )
 
     async def get_list_by_product(
         self, product_id: str, page: int = 1, page_size: int = 10
     ) -> tuple[list[ProductReview], int]:
         """分页获取某个商品的评价列表"""
-        query = ProductReview.find(Eq(ProductReview.product_id, uuid.UUID(product_id)))
+        query = ProductReview.find(Eq("product_id", uuid.UUID(product_id)))
         total = await query.count()
 
         # 按时间倒序
@@ -49,7 +49,7 @@ class ReviewsRepo:
             # 在内容中模糊搜索
             from beanie.odm.operators.find.evaluation import RegEx
 
-            query = query.find(RegEx(ProductReview.content, keyword, options="i"))
+            query = query.find(RegEx("content", keyword, options="i"))
 
         total = await query.count()
         reviews = (

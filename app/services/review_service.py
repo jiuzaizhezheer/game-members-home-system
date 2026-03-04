@@ -1,5 +1,6 @@
 import uuid
 from datetime import UTC, datetime
+from decimal import Decimal
 
 from app.common.errors import BusinessError, NotFoundError
 from app.database.pgsql import get_pg
@@ -70,9 +71,19 @@ class ReviewService:
                     (current_rating * current_total) + payload.rating
                 ) / new_total
 
-                product.review_count = new_total
                 product.rating = new_rating
                 await session.flush()
+
+            # 6. 会员积分奖励 (评价赠送 20 分)
+            from app.services.point_service import point_service
+
+            await point_service.grant_points(
+                session,
+                user.id,
+                Decimal("20"),
+                "发表评价奖励",
+                related_id=str(payload.order_id),
+            )
 
             # Schema 转换: BaseEntity id 是 PydanticObjectId，但 ReviewOut 需为 str
             return ReviewOut(

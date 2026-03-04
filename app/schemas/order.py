@@ -13,6 +13,9 @@ class OrderCreateIn(BaseModel):
     """创建订单请求"""
 
     address_id: uuid.UUID = Field(description="收货地址ID")
+    user_coupon_id: uuid.UUID | None = Field(None, description="使用的优惠券记录ID")
+    use_points: bool = Field(False, description="是否使用积分抵扣")
+    points_to_use: Decimal | None = Field(None, description="使用的积分数量")
 
 
 class BuyNowIn(BaseModel):
@@ -21,6 +24,9 @@ class BuyNowIn(BaseModel):
     product_id: uuid.UUID = Field(description="商品ID")
     quantity: int = Field(ge=1, description="购买数量")
     address_id: uuid.UUID = Field(description="收货地址ID")
+    user_coupon_id: uuid.UUID | None = Field(None, description="使用的优惠券记录ID")
+    use_points: bool = Field(False, description="是否使用积分抵扣")
+    points_to_use: Decimal | None = Field(None, description="使用的积分数量")
 
 
 class OrderShipIn(BaseModel):
@@ -28,6 +34,7 @@ class OrderShipIn(BaseModel):
 
     courier_name: str = Field(min_length=1, max_length=64, description="快递公司名称")
     tracking_no: str = Field(min_length=1, max_length=64, description="物流单号")
+    sender_address: str = Field(min_length=1, max_length=128, description="发货地址")
 
 
 class OrderItemOut(BaseModel):
@@ -61,6 +68,10 @@ class OrderOut(BaseModel):
     completed_at: datetime | None = None
     courier_name: str | None = None
     tracking_no: str | None = None
+    user_coupon_id: uuid.UUID | None = None
+    coupon_amount: Decimal | None = None
+    point_deduction_amount: Decimal | None = None
+    points_consumed: Decimal | None = None
     refund_status: str | None = Field(None, description="退款状态标记")
     items: list[OrderItemOut] = Field(default_factory=list)
 

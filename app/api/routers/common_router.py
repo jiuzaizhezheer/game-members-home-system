@@ -5,7 +5,10 @@ from typing import Annotated
 
 from fastapi import APIRouter, File, UploadFile, status
 
+from app.common.constants import GET_SUCCESS
 from app.schemas import FileUploadOut, SuccessResponse
+from app.schemas.banner import BannerOut
+from app.services.banner_service import banner_service
 
 common_router = APIRouter()
 
@@ -43,3 +46,14 @@ async def upload_file(
     return SuccessResponse[FileUploadOut](
         message="上传成功", data=FileUploadOut(url=url)
     )
+
+
+@common_router.get(
+    path="/banners",
+    response_model=SuccessResponse[list[BannerOut]],
+    tags=["banners"],
+)
+async def get_public_banners() -> SuccessResponse[list[BannerOut]]:
+    """获取公开轮播图"""
+    data = await banner_service.get_public_banners()
+    return SuccessResponse(message=GET_SUCCESS, data=data)
