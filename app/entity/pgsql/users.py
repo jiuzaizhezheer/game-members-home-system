@@ -1,7 +1,8 @@
 import uuid
+from decimal import Decimal
 
 import uuid6
-from sqlalchemy import Boolean, CheckConstraint, String, UniqueConstraint, text
+from sqlalchemy import Boolean, CheckConstraint, Numeric, String, UniqueConstraint, text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -29,6 +30,25 @@ class User(BaseEntity):
     )
     avatar_url: Mapped[str | None] = mapped_column(
         String(512), nullable=True, comment="头像地址"
+    )
+    points: Mapped[Decimal] = mapped_column(
+        Numeric(12, 2),
+        default=Decimal("0.00"),
+        server_default=text("0.00"),
+        comment="会员积分",
+    )
+    total_spent: Mapped[Decimal] = mapped_column(
+        Numeric(12, 2),
+        default=Decimal("0.00"),
+        server_default=text("0.00"),
+        comment="累计消费金额",
+    )
+    level: Mapped[str] = mapped_column(
+        String(16),
+        nullable=False,
+        default="bronze",
+        server_default=text("'bronze'"),
+        comment="会员等级",
     )
     __table_args__ = (
         CheckConstraint("role IN ('member','merchant','admin')", name="chk_users_role"),

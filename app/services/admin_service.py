@@ -1,6 +1,5 @@
-"""管理员业务逻辑层"""
-
 import uuid
+from decimal import Decimal
 
 from app.common.constants import MERCHANT_NOT_FOUND, PRODUCT_NOT_FOUND, USER_NOT_FOUND
 from app.common.errors import NotFoundError
@@ -12,7 +11,9 @@ from app.repo import (
     admin_stats_repo,
     admin_users_repo,
     community_repo,
+    products_repo,
 )
+from app.repo.reviews_repo import reviews_repo
 from app.schemas.admin import (
     AdminDashboardOut,
     AdminMerchantItemOut,
@@ -23,6 +24,7 @@ from app.schemas.admin import (
 from app.schemas.community import CommentItemOut, CommentListOut, PostListOut
 from app.schemas.order import OrderItemOut, OrderListOut, OrderOut
 from app.schemas.product import ProductListOut, ProductOut
+from app.schemas.review import ReviewListOut, ReviewOut, ReviewUserOut
 
 
 class AdminService:
@@ -239,6 +241,7 @@ class AdminService:
             for o in orders:
                 items = await admin_products_repo.get_items_by_order_id(session, o.id)
                 o_out = OrderOut.model_validate(o)
+                # SQL Entity Order has refund_status, but ensure it's on o_out
                 o_out.items = [
                     OrderItemOut(
                         id=i.id,
@@ -247,6 +250,7 @@ class AdminService:
                         unit_price=i.unit_price,
                         product_name=i.product.name,
                         product_image=i.product.image_url,
+                        is_reviewed=False,  # 管理端暂不展示具体评价状态，或需额外查询
                     )
                     for i in items
                 ]
@@ -271,6 +275,7 @@ class AdminService:
                     unit_price=i.unit_price,
                     product_name=i.product.name,
                     product_image=i.product.image_url,
+                    is_reviewed=False,
                 )
                 for i in items
             ]
@@ -395,4 +400,95 @@ class AdminService:
                 action="delete_comment",
                 target_type="comment",
                 target_id=comment_id,
+            )
+
+    # --- 评价管理 ---
+
+    async def get_all_reviews(
+        self,
+        *,
+        page: int = 1,
+        page_size: int = 20,
+        keyword: str | None = None,
+    ) -> ReviewListOut:
+        """管理员获取全平台评价列表"""
+        reviews, total = await reviews_repo.get_all_list(
+            page=page, page_size=page_size, keyword=keyword
+        )
+
+        # 批量获取商品信息以填充冗余字段
+        product_ids: list[str | uuid.UUID] = list(set(r.product_id for r in reviews))
+        product_map = {}
+        if product_ids:
+            async with get_pg() as session:
+                products = await products_repo.get_by_ids(session, product_ids)
+                product_map = {p.id: p for p in products}
+
+        items = []
+        for r in reviews:
+            product = product_map.get(r.product_id)
+            items.append(
+                ReviewOut(
+                    id=str(r.id),
+                    product_id=r.product_id,
+                    order_id=r.order_id,
+                    user=ReviewUserOut.model_validate(r.user, from_attributes=True),
+                    rating=r.rating,
+                    content=r.content,
+                    images=r.images,
+                    merchant_reply=r.merchant_reply,
+                    reply_at=r.reply_at,
+                    product_name=product.name if product else None,
+                    product_image=product.image_url if product else None,
+                    created_at=r.created_at,
+                    updated_at=r.updated_at,
+                )
+            )
+        return ReviewListOut(items=items, total=total, page=page, page_size=page_size)
+
+    async def delete_review(self, review_id: str, admin_id: str) -> None:
+        """管理删除评价 (并同步更新商品评分统计)"""
+        admin_uuid = uuid.UUID(admin_id)
+
+        # 1. 获取评价详情
+        review = await reviews_repo.get_by_id(review_id)
+        if not review:
+            raise NotFoundError("评价不存在")
+
+        product_id = str(review.product_id)
+        rating_to_remove = review.rating
+
+        # 2. 物理删除评价
+        await reviews_repo.delete(review)
+
+        # 3. 同步更新 PostgreSQL 中商品的统计字段 (rating 均分 和 review_count)
+        async with get_pg() as session:
+            product = await products_repo.get_by_id(session, product_id)
+            if product:
+                current_total = product.review_count
+                current_rating = product.rating
+
+                if current_total <= 1:
+                    product.review_count = 0
+                    product.rating = Decimal("0.0")
+                else:
+                    new_total = current_total - 1
+                    # 逆向计算均分: (原始均分 * 原始总数 - 被删评分) / (原始总数 - 1)
+                    new_rating = (
+                        (Decimal(str(current_rating)) * current_total)
+                        - rating_to_remove
+                    ) / new_total
+                    product.review_count = new_total
+                    product.rating = Decimal(str(max(0.0, float(new_rating))))
+
+                await session.flush()
+
+            # 4. 记录操作日志
+            await admin_log_repo.create_log(
+                session,
+                admin_id=admin_uuid,
+                action="delete_review",
+                target_type="review",
+                target_id=review_id,
+                detail={"product_id": product_id, "rating": rating_to_remove},
             )

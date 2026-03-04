@@ -2,10 +2,13 @@ from fastapi import APIRouter
 
 from app.api.routers import (
     address_router,
+    admin_banner_router,
     admin_community_router,
+    admin_coupon_router,
     admin_log_router,
     admin_merchant_router,
     admin_product_router,
+    admin_review_router,
     admin_router,
     admin_user_router,
     auth_router,
@@ -13,6 +16,7 @@ from app.api.routers import (
     category_router,
     common_router,
     community_router,
+    coupon_router,
     favorite_router,
     merchant_community_router,
     merchant_promotion_router,
@@ -21,6 +25,7 @@ from app.api.routers import (
     message_router,
     order_router,
     product_router,
+    review_router,
     user_router,
 )
 
@@ -39,23 +44,27 @@ api_routers.include_router(address_router, prefix="/addresses", tags=["addresses
 api_routers.include_router(order_router, prefix="/orders", tags=["orders"])
 api_routers.include_router(favorite_router, prefix="/favorites", tags=["favorites"])
 api_routers.include_router(message_router, prefix="/messages", tags=["messages"])
-api_routers.include_router(community_router, prefix="/community", tags=["community"])
+api_routers.include_router(review_router, prefix="/reviews", tags=["reviews"])
+api_routers.include_router(coupon_router, prefix="/coupons", tags=["coupons"])
+api_routers.include_router(community_router, prefix="/communities", tags=["community"])
 api_routers.include_router(
-    merchant_community_router, prefix="/merchant/community", tags=["merchant-community"]
+    merchant_community_router,
+    prefix="/merchants/communities",
+    tags=["merchant-community"],
 )
 api_routers.include_router(
     merchant_promotion_router,
-    prefix="/merchant/promotions",
+    prefix="/merchants/promotions",
     tags=["merchant-promotions"],
 )
 api_routers.include_router(
     merchant_statistics_router,
-    prefix="/merchant/statistics",
+    prefix="/merchants/statistics",
     tags=["merchant-statistics"],
 )
 api_routers.include_router(admin_router, prefix="/admins", tags=["admin"])
 api_routers.include_router(
-    admin_community_router, prefix="/admins/community", tags=["admin-community"]
+    admin_community_router, prefix="/admins/communities", tags=["admin-community"]
 )
 api_routers.include_router(
     admin_user_router, prefix="/admins/users", tags=["admin-users"]
@@ -65,5 +74,14 @@ api_routers.include_router(
 )
 api_routers.include_router(
     admin_product_router, prefix="/admins/products", tags=["admin-products"]
+)
+api_routers.include_router(
+    admin_review_router, prefix="/admins/reviews", tags=["admin-reviews"]
+)
+api_routers.include_router(
+    admin_banner_router, prefix="/admins/banners", tags=["admin-banners"]
+)
+api_routers.include_router(
+    admin_coupon_router, prefix="/admins/coupons", tags=["admin-coupons"]
 )
 api_routers.include_router(admin_log_router, prefix="/admins/logs", tags=["admin-logs"])

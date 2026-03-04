@@ -1,3 +1,5 @@
+from decimal import Decimal
+
 from app.common.constants import (
     INVALID_CREDENTIALS,
     REFRESH_TOKEN_INVALID,
@@ -34,10 +36,19 @@ class AuthService:
                 password_hash=hash_password(payload.password),
             )
             await users_repo.create(session, user)
+
             if payload.role == RoleEnum.MERCHANT:
                 shop_name = f"{payload.username}的店铺"
                 merchant = Merchant(user_id=user.id, shop_name=shop_name)
                 await merchants_repo.create(session, merchant)
+
+            # 会员注册赠送初始积分
+            if payload.role == RoleEnum.MEMBER:
+                from app.services.point_service import point_service
+
+                await point_service.grant_points(
+                    session, user.id, Decimal("100"), "用户注册赠送"
+                )
 
     async def login(self, payload: AuthLoginIn) -> TokenOut:
         """用户登录服务"""

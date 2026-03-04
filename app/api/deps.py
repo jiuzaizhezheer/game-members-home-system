@@ -7,11 +7,14 @@ from app.services import (
     AddressService,
     AdminService,
     AuthService,
+    BannerService,
     CaptchaService,
     CartService,
     CategoryService,
     CommunityService,
+    CouponService,
     FavoriteService,
+    LogisticsService,
     MerchantService,
     MessageService,
     OrderService,
@@ -19,6 +22,7 @@ from app.services import (
     PromotionService,
     UserService,
 )
+from app.services.order_refund_service import OrderRefundService
 from app.utils import decode_access_token
 
 # 单例模式
@@ -36,10 +40,18 @@ _favorite_service = FavoriteService()
 _message_service = MessageService()
 _community_service = CommunityService()
 _promotion_service = PromotionService()
+_order_refund_service = OrderRefundService()
+_banner_service = BannerService()
+_logistics_service = LogisticsService()
+_coupon_service = CouponService()
 
 
 def get_admin_service() -> AdminService:
     return _admin_service
+
+
+def get_order_refund_service() -> OrderRefundService:
+    return _order_refund_service
 
 
 def get_user_service() -> UserService:
@@ -92,6 +104,18 @@ def get_community_service() -> CommunityService:
 
 def get_promotion_service() -> PromotionService:
     return _promotion_service
+
+
+def get_banner_service() -> BannerService:
+    return _banner_service
+
+
+def get_logistics_service() -> LogisticsService:
+    return _logistics_service
+
+
+def get_coupon_service() -> CouponService:
+    return _coupon_service
 
 
 def get_current_user_id(request: Request) -> str:

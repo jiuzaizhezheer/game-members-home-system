@@ -54,8 +54,23 @@ class Order(BaseEntity):
     status: Mapped[str] = mapped_column(
         String(16), nullable=False, server_default=text("'pending'"), comment="订单状态"
     )
+    refund_status: Mapped[str | None] = mapped_column(
+        String(16), nullable=True, comment="退款状态 (pending, approved, rejected)"
+    )
     total_amount: Mapped[Decimal] = mapped_column(
-        Numeric(12, 2), nullable=False, comment="订单总金额"
+        Numeric(12, 2), nullable=False, comment="订单总金额 (实付金额)"
+    )
+    user_coupon_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), comment="使用的优惠券记录ID"
+    )
+    coupon_amount: Mapped[Decimal | None] = mapped_column(
+        Numeric(12, 2), comment="优惠券抵扣金额"
+    )
+    point_deduction_amount: Mapped[Decimal | None] = mapped_column(
+        Numeric(12, 2), comment="积分抵扣金额"
+    )
+    points_consumed: Mapped[Decimal | None] = mapped_column(
+        Numeric(12, 2), comment="消耗积分数量"
     )
     paid_at: Mapped["datetime | None"] = mapped_column(
         DateTime(timezone=True), comment="支付时间"
@@ -71,8 +86,12 @@ class Order(BaseEntity):
     __table_args__ = (
         CheckConstraint("total_amount >= 0", name="chk_orders_total_amount_nonneg"),
         CheckConstraint(
-            "status IN ('pending','paid','shipped','completed','cancelled')",
+            "status IN ('pending','paid','shipped','completed','cancelled','refunding','refunded','closed')",
             name="chk_orders_status",
+        ),
+        CheckConstraint(
+            "refund_status IS NULL OR refund_status IN ('pending','approved','rejected')",
+            name="chk_orders_refund_status",
         ),
         Index("idx_orders_user_created", "user_id", "created_at"),
         Index("idx_orders_status", "status"),

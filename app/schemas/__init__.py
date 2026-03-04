@@ -53,6 +53,8 @@ from .product import (
 )
 from .response import ErrorResponse, SuccessResponse
 from .user import (
+    PointLogListOut,
+    PointLogOut,
     UserChangePasswordIn,
     UserOut,
     UserProfileUpdateIn,
@@ -101,4 +103,6 @@ __all__ = [
     "UserChangePasswordIn",
     "UserOut",
     "UserProfileUpdateIn",
+    "PointLogListOut",
+    "PointLogOut",
 ]

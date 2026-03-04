@@ -77,6 +77,7 @@ async def get_list_by_merchant(
     page: int = 1,
     page_size: int = 10,
     status: str | None = None,
+    refund_status: str | None = None,
 ) -> tuple[list[Order], int]:
     """分页获取商家的订单列表 (通过订单明细关联商品)"""
     # 基础查询: 查找包含该商家商品的订单ID
@@ -88,9 +89,11 @@ async def get_list_by_merchant(
         .options(selectinload(Order.address))
     )
 
-    # 状态筛选
+    # 状态筛选 (主状态或退款标记)
     if status:
         base_stmt = base_stmt.where(Order.status == status)
+    if refund_status:
+        base_stmt = base_stmt.where(Order.refund_status == refund_status)
 
     base_stmt = base_stmt.distinct()
 

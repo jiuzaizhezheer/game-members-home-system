@@ -3,9 +3,10 @@ from typing import Annotated
 from fastapi import APIRouter, Body, Depends, status
 
 from app.api.deps import get_current_user_id, get_user_service
-from app.api.role import require_any_role
+from app.api.role import require_any_role, require_member
 from app.common.constants import CHANGE_PASSWORD_SUCCESS, GET_SUCCESS
 from app.schemas import (
+    PointLogListOut,
     SuccessResponse,
     UserChangePasswordIn,
     UserOut,
@@ -62,9 +63,25 @@ async def change_password(
     payload: Annotated[UserChangePasswordIn, Body(description="修改密码请求体")],
     user_service: Annotated[UserService, Depends(get_user_service)],
 ) -> SuccessResponse[None]:
-    """已登录情况下通过旧密码修改自己密码路由"""
     await user_service.change_password(user_id, payload)
     return SuccessResponse[None](message=CHANGE_PASSWORD_SUCCESS)
+
+
+@user_router.get(
+    path="/me/points",
+    dependencies=[require_member],
+    response_model=SuccessResponse[PointLogListOut],
+    status_code=status.HTTP_200_OK,
+)
+async def get_my_points(
+    user_id: Annotated[str, Depends(get_current_user_id)],
+    user_service: Annotated[UserService, Depends(get_user_service)],
+    page: int = 1,
+    page_size: int = 10,
+) -> SuccessResponse[PointLogListOut]:
+    """获取当前登录会员的积分变动历史"""
+    history = await user_service.get_point_history(user_id, page, page_size)
+    return SuccessResponse[PointLogListOut](message=GET_SUCCESS, data=history)
 
 
 # TODO: 重置密码路由, 不需要验证旧密码与新密码是否相同

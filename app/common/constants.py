@@ -7,6 +7,9 @@ DUPLICATE_RESOURCE_ERROR = "资源重复"
 UNKNOWN_ERROR = "未知错误"
 VALIDATION_ERROR = "校验错误"
 LOGIN_SUCCESS = "登录成功"
+CREATE_SUCCESS = "创建成功"
+UPDATE_SUCCESS = "更新成功"
+DELETE_SUCCESS = "删除成功"
 INVALID_CREDENTIALS = "账号或密码错误"
 CHANGE_PASSWORD_SUCCESS = "密码修改成功"
 OLD_PASSWORD_ERROR = "旧密码错误"
@@ -58,3 +61,19 @@ FAVORITE_REMOVE_SUCCESS = "取消收藏成功"
 # 社区相关
 COMMUNITY_GROUP_EXISTS = "话题圈名称已存在"
 COMMUNITY_GROUP_NOT_FOUND = "话题圈不存在"
+
+# 会员等级门槛 (累计消费金额)
+MEMBERSHIP_THRESHOLDS = {
+    "bronze": 0,
+    "silver": 2000,
+    "gold": 10000,
+    "diamond": 50000,
+}
+
+# 会员等级名称映射
+MEMBERSHIP_LEVEL_NAMES = {
+    "bronze": "青铜会员",
+    "silver": "白银会员",
+    "gold": "黄金会员",
+    "diamond": "铂金会员",
+}

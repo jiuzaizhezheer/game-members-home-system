@@ -160,4 +160,5 @@ Project-Description.md
 celerybeat-schedule*
 
 # Static files
-static/
+static/*
+!static/.keep

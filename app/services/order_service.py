@@ -4,6 +4,8 @@ import uuid
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 
+from fastapi import BackgroundTasks
+
 from app.common.constants import ORDER_STATUS_ERROR
 from app.common.errors import BusinessError, NotFoundError
 from app.database.pgsql import get_pg
@@ -108,6 +110,68 @@ class OrderService:
                     )
                 )
 
+            # 3.5 优惠券核销
+            user_coupon_id = payload.user_coupon_id
+            coupon_amount = Decimal("0.00")
+            if user_coupon_id:
+                from app.repo import coupons_repo
+                from app.services.coupon_service import CouponService
+
+                coupon_service = CouponService()
+
+                # 获取商家ID集合用于校验商家券
+                merchant_ids = {
+                    item.product.merchant_id for item in order_items_to_create
+                }
+
+                user_coupon, coupon = await coupon_service.validate_coupon_for_order(
+                    uuid.UUID(user_id), user_coupon_id, total_amount, merchant_ids
+                )
+
+                # 计算优惠金额
+                if coupon.discount_type == "percent":
+                    coupon_amount = total_amount * (
+                        Decimal(str(coupon.discount_value)) / Decimal(100)
+                    )
+                else:
+                    coupon_amount = Decimal(str(coupon.discount_value))
+
+                # 确保折扣不超过总价
+                coupon_amount = min(coupon_amount, total_amount)
+                total_amount -= coupon_amount
+
+            # 3.6 积分抵扣
+            point_deduction_amount = Decimal("0.00")
+            points_consumed = Decimal("0.00")
+            if payload.use_points:
+                from app.repo import users_repo
+                from app.services.point_service import point_service
+
+                user = await users_repo.get_by_id(session, str(user_id))
+                if user and user.points > 0:
+                    # 计算最大可抵扣
+                    max_deduction, max_points = (
+                        point_service.calculate_points_deduction(
+                            user.points, total_amount
+                        )
+                    )
+
+                    if payload.points_to_use is not None:
+                        # 使用用户指定的积分，但不超过最大可抵扣和用户余额
+                        actual_points = min(
+                            payload.points_to_use, max_points, user.points
+                        )
+                        points_consumed = actual_points
+                        point_deduction_amount = (
+                            points_consumed
+                            / Decimal(str(point_service.POINTS_TO_CASH_RATIO))
+                        ).quantize(Decimal("0.01"))
+                    else:
+                        point_deduction_amount = max_deduction
+                        points_consumed = max_points
+
+                    total_amount -= point_deduction_amount
+
             # 4. 创建订单记录
             new_order = Order(
                 user_id=uuid.UUID(user_id),
@@ -115,8 +179,22 @@ class OrderService:
                 order_no=generate_order_no(),
                 status="pending",
                 total_amount=total_amount,
+                user_coupon_id=user_coupon_id,
+                coupon_amount=coupon_amount if user_coupon_id else None,
+                point_deduction_amount=(
+                    point_deduction_amount if point_deduction_amount > 0 else None
+                ),
+                points_consumed=points_consumed if points_consumed > 0 else None,
             )
             await orders_repo.create(session, new_order)
+
+            # 4.5 标记优惠券使用
+            if user_coupon_id:
+                from app.repo import coupons_repo
+
+                await coupons_repo.use_user_coupon(
+                    session, user_coupon_id, new_order.id
+                )
 
             # 5. 关联订单明细并保存
             for item in order_items_to_create:
@@ -135,6 +213,9 @@ class OrderService:
                 total_amount=new_order.total_amount,
                 address_id=new_order.address_id,
                 created_at=new_order.created_at,
+                user_coupon_id=new_order.user_coupon_id,
+                coupon_amount=new_order.coupon_amount,
+                refund_status=None,
                 items=[
                     OrderItemOut(
                         id=oi.id,
@@ -143,6 +224,7 @@ class OrderService:
                         unit_price=oi.unit_price,
                         product_name=oi.product.name,
                         product_image=oi.product.image_url,
+                        is_reviewed=False,  # 新订单肯定未评价
                     )
                     for oi in order_items_to_create
                 ],
@@ -193,6 +275,65 @@ class OrderService:
 
             total_amount = unit_price * payload.quantity
 
+            # 4.5 优惠券核销
+            user_coupon_id = payload.user_coupon_id
+            coupon_amount = Decimal("0.00")
+            if user_coupon_id:
+                from app.services.coupon_service import CouponService
+
+                coupon_service = CouponService()
+
+                user_coupon, coupon = await coupon_service.validate_coupon_for_order(
+                    uuid.UUID(user_id),
+                    user_coupon_id,
+                    total_amount,
+                    {product.merchant_id},
+                )
+
+                # 计算优惠金额
+                if coupon.discount_type == "percent":
+                    coupon_amount = total_amount * (
+                        Decimal(str(coupon.discount_value)) / Decimal(100)
+                    )
+                else:
+                    coupon_amount = Decimal(str(coupon.discount_value))
+
+                # 确保折扣不超过总价
+                coupon_amount = min(coupon_amount, total_amount)
+                total_amount -= coupon_amount
+
+            # 4.6 积分抵扣
+            point_deduction_amount = Decimal("0.00")
+            points_consumed = Decimal("0.00")
+            if payload.use_points:
+                from app.repo import users_repo
+                from app.services.point_service import point_service
+
+                user = await users_repo.get_by_id(session, str(user_id))
+                if user and user.points > 0:
+                    # 计算最大可抵扣
+                    max_deduction, max_points = (
+                        point_service.calculate_points_deduction(
+                            user.points, total_amount
+                        )
+                    )
+
+                    if payload.points_to_use is not None:
+                        # 使用用户指定的积分，但不超过最大可抵扣和用户余额
+                        actual_points = min(
+                            payload.points_to_use, max_points, user.points
+                        )
+                        points_consumed = actual_points
+                        point_deduction_amount = (
+                            points_consumed
+                            / Decimal(str(point_service.POINTS_TO_CASH_RATIO))
+                        ).quantize(Decimal("0.01"))
+                    else:
+                        point_deduction_amount = max_deduction
+                        points_consumed = max_points
+
+                    total_amount -= point_deduction_amount
+
             # 5. 创建订单
             new_order = Order(
                 user_id=uuid.UUID(user_id),
@@ -200,8 +341,22 @@ class OrderService:
                 order_no=generate_order_no(),
                 status="pending",
                 total_amount=total_amount,
+                user_coupon_id=user_coupon_id,
+                coupon_amount=coupon_amount if user_coupon_id else None,
+                point_deduction_amount=(
+                    point_deduction_amount if point_deduction_amount > 0 else None
+                ),
+                points_consumed=points_consumed if points_consumed > 0 else None,
             )
             await orders_repo.create(session, new_order)
+
+            # 5.5 标记优惠券使用
+            if user_coupon_id:
+                from app.repo import coupons_repo
+
+                await coupons_repo.use_user_coupon(
+                    session, user_coupon_id, new_order.id
+                )
 
             # 6. 创建订单明细
             order_item = OrderItem(
@@ -221,6 +376,9 @@ class OrderService:
                 total_amount=new_order.total_amount,
                 address_id=new_order.address_id,
                 created_at=new_order.created_at,
+                user_coupon_id=new_order.user_coupon_id,
+                coupon_amount=new_order.coupon_amount,
+                refund_status=None,
                 items=[
                     OrderItemOut(
                         id=order_item.id,
@@ -229,6 +387,7 @@ class OrderService:
                         unit_price=order_item.unit_price,
                         product_name=product.name,
                         product_image=product.image_url,
+                        is_reviewed=False,
                     )
                 ],
             )
@@ -242,22 +401,33 @@ class OrderService:
                 session, user_id, page, page_size
             )
 
-            # 转换并加载明细 (实际应在 Repo 层优化加载)
             ordered_out = []
+            from app.repo.reviews_repo import reviews_repo
+
             for o in orders:
                 items = await orders_repo.get_items_by_order_id(session, o.id)
                 o_out = OrderOut.model_validate(o)
-                o_out.items = [
-                    OrderItemOut(
-                        id=i.id,
-                        product_id=i.product_id,
-                        quantity=i.quantity,
-                        unit_price=i.unit_price,
-                        product_name=i.product.name,  # 假如 lazy="selectin" 生效
-                        product_image=i.product.image_url,
+                oi_list = []
+                for i in items:
+                    is_reviewed = False
+                    if o.status == "completed":
+                        r = await reviews_repo.get_by_order_item(
+                            str(o.id), str(i.product_id)
+                        )
+                        is_reviewed = r is not None
+
+                    oi_list.append(
+                        OrderItemOut(
+                            id=i.id,
+                            product_id=i.product_id,
+                            quantity=i.quantity,
+                            unit_price=i.unit_price,
+                            product_name=i.product.name,
+                            product_image=i.product.image_url,
+                            is_reviewed=is_reviewed,
+                        )
                     )
-                    for i in items
-                ]
+                o_out.items = oi_list
                 ordered_out.append(o_out)
 
             return ordered_out, total
@@ -271,17 +441,30 @@ class OrderService:
 
             items = await orders_repo.get_items_by_order_id(session, order.id)
             out = OrderOut.model_validate(order)
-            out.items = [
-                OrderItemOut(
-                    id=i.id,
-                    product_id=i.product_id,
-                    quantity=i.quantity,
-                    unit_price=i.unit_price,
-                    product_name=i.product.name,
-                    product_image=i.product.image_url,
+
+            from app.repo.reviews_repo import reviews_repo
+
+            oi_list = []
+            for i in items:
+                is_reviewed = False
+                if order.status == "completed":
+                    r = await reviews_repo.get_by_order_item(
+                        str(order.id), str(i.product_id)
+                    )
+                    is_reviewed = r is not None
+
+                oi_list.append(
+                    OrderItemOut(
+                        id=i.id,
+                        product_id=i.product_id,
+                        quantity=i.quantity,
+                        unit_price=i.unit_price,
+                        product_name=i.product.name,
+                        product_image=i.product.image_url,
+                        is_reviewed=is_reviewed,
+                    )
                 )
-                for i in items
-            ]
+            out.items = oi_list
             return out
 
     async def cancel_order(self, user_id: str, order_id: str) -> None:
@@ -326,12 +509,43 @@ class OrderService:
                     session, item.product_id, item.quantity
                 )
 
-            # 4. 更新状态
+            # 4. 执行积分扣减 (如果使用了积分抵扣)
+            if order.points_consumed and order.points_consumed > 0:
+                from app.services.point_service import point_service
+
+                await point_service.consume_points(
+                    session,
+                    order.user_id,
+                    order.points_consumed,
+                    reason=f"订单支付抵扣: {order.order_no}",
+                    related_id=str(order.id),
+                )
+
+            # 5. 更新状态为已支付
             order.status = "paid"
             order.paid_at = datetime.now(UTC)
             await session.flush()
 
-    async def ship_order(self, order_id: str, payload: OrderShipIn) -> None:
+            # 5. 会员积分与成长值
+            from app.services.point_service import point_service
+
+            # 按优惠前总金额 (实付 + 优惠券) 10:1 发放积分
+            base_amount = order.total_amount + (order.coupon_amount or Decimal("0"))
+            points_to_grant = base_amount / Decimal("10")
+            if points_to_grant > 0:
+                await point_service.grant_points(
+                    session,
+                    order.user_id,
+                    points_to_grant,
+                    "订单支付奖励",
+                    related_id=str(order.id),
+                )
+            # 更新成长值并晋升等级
+            await point_service.update_growth(session, order.user_id, base_amount)
+
+    async def ship_order(
+        self, order_id: str, payload: OrderShipIn, background_tasks: BackgroundTasks
+    ) -> None:
         """订单发货"""
         async with get_pg() as session:
             order = await orders_repo.get_by_id(session, order_id)
@@ -347,6 +561,25 @@ class OrderService:
             order.courier_name = payload.courier_name
             order.tracking_no = payload.tracking_no
             await session.flush()
+
+            # 触发后台真实物流模拟
+            from app.services.logistics_service import logistics_service
+
+            # 1. 立即记录起点
+            await logistics_service.add_initial_log(
+                order_id=order.id,
+                courier_name=payload.courier_name,
+                tracking_no=payload.tracking_no,
+                location=payload.sender_address,
+            )
+            if order.address_id is None:
+                raise BusinessError(detail="订单缺少收货地址")
+            # 2. 调度后台任务模拟后续状态
+            background_tasks.add_task(
+                logistics_service.simulate_shipping_progress,
+                order_id=order.id,
+                address_id=order.address_id,
+            )
 
     async def receipt_order(self, user_id: str, order_id: str) -> None:
         """确认收货"""
@@ -368,6 +601,7 @@ class OrderService:
         page: int = 1,
         page_size: int = 10,
         status: str | None = None,
+        refund_status: str | None = None,
     ) -> tuple[list[OrderOut], int]:
         """获取商家的订单列表"""
         async with get_pg() as session:
@@ -376,7 +610,12 @@ class OrderService:
                 raise BusinessError(detail="当前用户不是商家")
 
             orders, total = await orders_repo.get_list_by_merchant(
-                session, str(merchant.id), page, page_size, status=status
+                session,
+                str(merchant.id),
+                page,
+                page_size,
+                status=status,
+                refund_status=refund_status,
             )
 
             # 转换并加载明细
@@ -392,6 +631,7 @@ class OrderService:
                         unit_price=i.unit_price,
                         product_name=i.product.name,
                         product_image=i.product.image_url,
+                        is_reviewed=False,
                     )
                     for i in items
                 ]

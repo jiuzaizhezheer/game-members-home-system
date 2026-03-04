@@ -4,8 +4,13 @@ from typing import Annotated
 
 from fastapi import APIRouter, Body, Depends, Path, Query, status
 
-from app.api.deps import get_current_user_id, get_order_service
-from app.api.role import require_member
+from app.api.deps import (
+    get_current_user_id,
+    get_logistics_service,
+    get_order_refund_service,
+    get_order_service,
+)
+from app.api.role import require_member, require_member_or_merchant
 from app.common.constants import (
     GET_SUCCESS,
     ORDER_CANCEL_SUCCESS,
@@ -13,8 +18,11 @@ from app.common.constants import (
     ORDER_RECEIPT_SUCCESS,
 )
 from app.schemas import SuccessResponse
+from app.schemas.logistics import OrderLogisticsOut
 from app.schemas.order import BuyNowIn, OrderCreateIn, OrderListOut, OrderOut
-from app.services.order_service import OrderService
+from app.schemas.order_refund import OrderRefundApplyIn, OrderRefundOut
+from app.services import LogisticsService, OrderService
+from app.services.order_refund_service import OrderRefundService
 
 order_router = APIRouter()
 
@@ -133,3 +141,51 @@ async def receipt_order(
     """确认收货"""
     await order_service.receipt_order(user_id, id)
     return SuccessResponse[None](message=ORDER_RECEIPT_SUCCESS)
+
+
+@order_router.post(
+    path="/{id}/refund",
+    dependencies=[require_member],
+    response_model=SuccessResponse[OrderRefundOut],
+    status_code=status.HTTP_201_CREATED,
+)
+async def apply_refund(
+    user_id: Annotated[str, Depends(get_current_user_id)],
+    id: Annotated[str, Path(description="订单ID")],
+    payload: Annotated[OrderRefundApplyIn, Body(description="退款申请表单")],
+    refund_service: Annotated[OrderRefundService, Depends(get_order_refund_service)],
+) -> SuccessResponse[OrderRefundOut]:
+    """用户申请退款/售后"""
+    refund = await refund_service.apply_refund(user_id, id, payload)
+    return SuccessResponse[OrderRefundOut](message="退款申请成功", data=refund)
+
+
+@order_router.get(
+    path="/{id}/refund",
+    dependencies=[require_member_or_merchant],
+    response_model=SuccessResponse[OrderRefundOut],
+    status_code=status.HTTP_200_OK,
+)
+async def get_refund_detail(
+    user_id: Annotated[str, Depends(get_current_user_id)],
+    id: Annotated[str, Path(description="订单ID")],
+    refund_service: Annotated[OrderRefundService, Depends(get_order_refund_service)],
+) -> SuccessResponse[OrderRefundOut]:
+    """获取退款详情与进度"""
+    refund = await refund_service.get_refund_detail(user_id, id)
+    return SuccessResponse[OrderRefundOut](message="获取成功", data=refund)
+
+
+@order_router.get(
+    path="/{id}/logistics",
+    dependencies=[require_member_or_merchant],
+    response_model=SuccessResponse[OrderLogisticsOut],
+    status_code=status.HTTP_200_OK,
+)
+async def get_order_logistics(
+    id: Annotated[str, Path(description="订单ID")],
+    logistics_service: Annotated[LogisticsService, Depends(get_logistics_service)],
+) -> SuccessResponse[OrderLogisticsOut]:
+    """获取订单物流轨迹"""
+    data = await logistics_service.get_order_tracking(id)
+    return SuccessResponse[OrderLogisticsOut](message="获取成功", data=data)
