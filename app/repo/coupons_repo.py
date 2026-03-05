@@ -193,6 +193,21 @@ async def use_user_coupon(
     await session.execute(stmt)
 
 
+async def return_user_coupon(session: AsyncSession, user_coupon_id: uuid.UUID):
+    """退回已使用的优惠券"""
+    stmt = (
+        update(UserCoupon)
+        .where(UserCoupon.id == user_coupon_id)
+        .values(
+            status="unused",
+            order_id=None,
+            used_at=None,
+            updated_at=datetime.now(UTC),
+        )
+    )
+    await session.execute(stmt)
+
+
 async def atomic_increment_issued_count(
     session: AsyncSession, coupon_id: uuid.UUID
 ) -> bool:

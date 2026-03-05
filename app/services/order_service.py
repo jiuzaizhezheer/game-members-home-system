@@ -205,6 +205,13 @@ class OrderService:
             cart.is_checked_out = True
             await session.flush()
 
+            # 6.5 触发超时未支付自动取消任务 (15分钟 = 900秒)
+            from app.tasks.celery_worker import cancel_unpaid_order_task
+
+            cancel_unpaid_order_task.apply_async(
+                args=[str(new_order.id), user_id], countdown=900
+            )
+
             # 7. 组装响应
             return OrderOut(
                 id=new_order.id,
@@ -367,6 +374,14 @@ class OrderService:
                 product=product,
             )
             await orders_repo.add_items(session, [order_item])
+            await session.flush()
+
+            # 6.5 触发超时未支付自动取消任务 (15分钟 = 900秒)
+            from app.tasks.celery_worker import cancel_unpaid_order_task
+
+            cancel_unpaid_order_task.apply_async(
+                args=[str(new_order.id), user_id], countdown=900
+            )
 
             # 7. 组装响应
             return OrderOut(
@@ -485,6 +500,12 @@ class OrderService:
                 await products_repo.recover_stock(
                     session, item.product_id, item.quantity
                 )
+
+            # 3.5 退回优惠券 (如果使用了)
+            if order.user_coupon_id:
+                from app.repo import coupons_repo
+
+                await coupons_repo.return_user_coupon(session, order.user_coupon_id)
 
             # 4. 更新状态
             order.status = "cancelled"
