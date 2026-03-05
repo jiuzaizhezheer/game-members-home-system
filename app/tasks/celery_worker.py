@@ -64,3 +64,32 @@ def check_order_timeout():
         # 如果 loop 已经关闭或不可用，尝试用 asyncio.run
         print(f"Fallback to asyncio.run due to: {e}")
         return asyncio.run(_run())
+
+
+@celery_app.task
+def cancel_unpaid_order_task(order_id: str, user_id: str):
+    """
+    Celery Task: 超时自动取消未支付订单
+    """
+    print(f"Running task: cancel_unpaid_order_task for order_id: {order_id}")
+
+    async def _run():
+        service = OrderService()
+        try:
+            # 调用取消订单服务
+            await service.cancel_order(user_id=user_id, order_id=order_id)
+            print(f"[AutoCancel] Successfully cancelled order {order_id}.")
+        except Exception as e:
+            # 如果订单不是 pending 状态（已支付或已取消），或订单不存在，忽略错误即可
+            print(f"[AutoCancel] Skipped or failed for order {order_id}: {e}")
+
+    try:
+        try:
+            loop = asyncio.get_event_loop()
+        except RuntimeError:
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+        return loop.run_until_complete(_run())
+    except Exception as e:
+        print(f"Fallback to asyncio.run due to: {e}")
+        return asyncio.run(_run())
