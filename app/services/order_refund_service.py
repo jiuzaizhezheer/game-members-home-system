@@ -178,6 +178,15 @@ class OrderRefundService:
                 # 3. 回滚成长值 (累计消费)
                 await point_service.update_growth(session, order.user_id, -base_amount)
 
+                from app.database.redis import get_redis
+                from app.services.redis_stock_service import redis_stock_service
+
+                async with get_redis() as redis_client:
+                    for item in items:
+                        await redis_stock_service.release(
+                            redis_client, session, item.product_id, item.quantity
+                        )
+
                 # 4. 发送通知
                 background_tasks.add_task(
                     notification_service.create_notification,

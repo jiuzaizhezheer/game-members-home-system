@@ -1,9 +1,12 @@
 """商品仓储层：商品数据访问"""
 
 import uuid
+from typing import cast
 
 from sqlalchemy import delete as sa_delete
 from sqlalchemy import exists, func, insert, select
+from sqlalchemy import update as sa_update
+from sqlalchemy.engine import CursorResult
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.entity.pgsql import Merchant, Product, ProductCategory
@@ -209,28 +212,31 @@ async def deduct_stock(
     session: AsyncSession, product_id: uuid.UUID, quantity: int
 ) -> bool:
     """扣减库存 (返回是否成功)"""
-    # 使用悲观锁 (SELECT FOR UPDATE) 防止超卖
-    stmt = select(Product).where(Product.id == product_id).with_for_update()
-    product = (await session.execute(stmt)).scalar_one_or_none()
-
-    if not product or product.stock < quantity:
-        return False
-
-    product.stock -= quantity
+    if quantity <= 0:
+        return True
+    stmt = (
+        sa_update(Product)
+        .where(Product.id == product_id, Product.stock >= quantity)
+        .values(stock=Product.stock - quantity)
+    )
+    result = cast(CursorResult, await session.execute(stmt))
     await session.flush()
-    return True
+    return (result.rowcount or 0) > 0
 
 
 async def recover_stock(
     session: AsyncSession, product_id: uuid.UUID, quantity: int
 ) -> None:
     """恢复库存 (异常回滚或取消订单时使用)"""
-    stmt = select(Product).where(Product.id == product_id).with_for_update()
-    product = (await session.execute(stmt)).scalar_one_or_none()
-
-    if product:
-        product.stock += quantity
-        await session.flush()
+    if quantity <= 0:
+        return
+    stmt = (
+        sa_update(Product)
+        .where(Product.id == product_id)
+        .values(stock=Product.stock + quantity)
+    )
+    await session.execute(stmt)
+    await session.flush()
 
 
 async def increment_views(session: AsyncSession, product_id: uuid.UUID | str) -> None:
