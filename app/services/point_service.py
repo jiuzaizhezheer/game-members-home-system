@@ -1,11 +1,13 @@
 import uuid
 from decimal import Decimal
 
+from fastapi import BackgroundTasks
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.common.constants import MEMBERSHIP_THRESHOLDS
 from app.entity.pgsql.point_logs import PointLog
 from app.repo import point_logs_repo, users_repo
+from app.services.notification_service import notification_service
 
 
 class PointService:
@@ -78,6 +80,7 @@ class PointService:
         amount: Decimal,
         reason: str,
         related_id: str | None = None,
+        background_tasks: BackgroundTasks | None = None,
     ) -> None:
         """发放积分并记录日志"""
         user = await users_repo.get_by_id(session, str(user_id))
@@ -94,6 +97,16 @@ class PointService:
             related_id=related_id,
         )
         await point_logs_repo.add_log(session, log)
+
+        if background_tasks:
+            background_tasks.add_task(
+                notification_service.create_notification,
+                str(user_id),
+                "system",
+                "积分入账通知",
+                f"您已获得 {amount} 积分。原因：{reason}。当前余额：{user.points}。",
+                "/member/points",
+            )
 
     async def update_growth(
         self, session: AsyncSession, user_id: uuid.UUID, amount: Decimal

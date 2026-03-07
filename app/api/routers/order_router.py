@@ -2,7 +2,7 @@
 
 from typing import Annotated
 
-from fastapi import APIRouter, Body, Depends, Path, Query, status
+from fastapi import APIRouter, BackgroundTasks, Body, Depends, Path, Query, status
 
 from app.api.deps import (
     get_current_user_id,
@@ -37,9 +37,10 @@ async def create_order(
     user_id: Annotated[str, Depends(get_current_user_id)],
     payload: Annotated[OrderCreateIn, Body(description="下单请求")],
     order_service: Annotated[OrderService, Depends(get_order_service)],
+    background_tasks: BackgroundTasks,
 ) -> SuccessResponse[OrderOut]:
     """创建订单（从购物车结算）"""
-    order = await order_service.create_from_cart(user_id, payload)
+    order = await order_service.create_from_cart(user_id, payload, background_tasks)
     return SuccessResponse[OrderOut](message="下单成功", data=order)
 
 
@@ -53,9 +54,10 @@ async def buy_now(
     user_id: Annotated[str, Depends(get_current_user_id)],
     payload: Annotated[BuyNowIn, Body(description="立即购买请求")],
     order_service: Annotated[OrderService, Depends(get_order_service)],
+    background_tasks: BackgroundTasks,
 ) -> SuccessResponse[OrderOut]:
     """立即购买（绕过购物车直接下单）"""
-    order = await order_service.buy_now(user_id, payload)
+    order = await order_service.buy_now(user_id, payload, background_tasks)
     return SuccessResponse[OrderOut](message="下单成功", data=order)
 
 
@@ -121,9 +123,10 @@ async def pay_order(
     user_id: Annotated[str, Depends(get_current_user_id)],
     id: Annotated[str, Path(description="订单ID")],
     order_service: Annotated[OrderService, Depends(get_order_service)],
+    background_tasks: BackgroundTasks,
 ) -> SuccessResponse[None]:
     """模拟支付"""
-    await order_service.pay_order(user_id, id)
+    await order_service.pay_order(user_id, id, background_tasks)
     return SuccessResponse[None](message=ORDER_PAY_SUCCESS)
 
 
@@ -137,9 +140,10 @@ async def receipt_order(
     user_id: Annotated[str, Depends(get_current_user_id)],
     id: Annotated[str, Path(description="订单ID")],
     order_service: Annotated[OrderService, Depends(get_order_service)],
+    background_tasks: BackgroundTasks,
 ) -> SuccessResponse[None]:
     """确认收货"""
-    await order_service.receipt_order(user_id, id)
+    await order_service.receipt_order(user_id, id, background_tasks)
     return SuccessResponse[None](message=ORDER_RECEIPT_SUCCESS)
 
 

@@ -424,3 +424,23 @@ CREATE TABLE IF NOT EXISTS point_logs (
 COMMENT ON TABLE point_logs IS '会员积分变动日志记录表';
 CREATE INDEX IF NOT EXISTS idx_point_logs_user ON point_logs(user_id);
 CREATE INDEX IF NOT EXISTS idx_point_logs_created ON point_logs(created_at DESC);
+
+-- =========================
+-- 系统消息通知实体
+-- =========================
+CREATE TABLE IF NOT EXISTS system_notifications (
+    id              uuid PRIMARY KEY,
+    user_id         uuid NOT NULL,
+    type            varchar(20) NOT NULL,
+    title           varchar(200) NOT NULL,
+    content         text NOT NULL,
+    link            varchar(500),
+    is_read         boolean NOT NULL DEFAULT false,
+    created_at      timestamptz NOT NULL DEFAULT now(),
+    updated_at      timestamptz NOT NULL DEFAULT now(),
+    CONSTRAINT fk_system_notifications_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+COMMENT ON TABLE system_notifications IS '系统消息通知表';
+CREATE INDEX IF NOT EXISTS idx_system_notifications_user ON system_notifications(user_id);
+CREATE INDEX IF NOT EXISTS idx_system_notifications_type ON system_notifications(type);
+CREATE INDEX IF NOT EXISTS idx_system_notifications_read ON system_notifications(is_read);

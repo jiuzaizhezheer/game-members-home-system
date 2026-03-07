@@ -20,6 +20,7 @@ from .merchant_promotion_router import merchant_promotion_router
 from .merchant_router import merchant_router
 from .merchant_statistics_router import merchant_statistics_router
 from .message_router import message_router
+from .notification import router as notification_router
 from .order_router import order_router
 from .product_router import product_router
 from .review_router import review_router
@@ -52,4 +53,5 @@ __all__ = [
     "address_router",
     "order_router",
     "message_router",
+    "notification_router",
 ]

@@ -23,6 +23,7 @@ from app.api.routers import (
     merchant_router,
     merchant_statistics_router,
     message_router,
+    notification_router,
     order_router,
     product_router,
     review_router,
@@ -85,3 +86,6 @@ api_routers.include_router(
     admin_coupon_router, prefix="/admins/coupons", tags=["admin-coupons"]
 )
 api_routers.include_router(admin_log_router, prefix="/admins/logs", tags=["admin-logs"])
+api_routers.include_router(
+    notification_router, prefix="/notifications", tags=["notifications"]
+)
