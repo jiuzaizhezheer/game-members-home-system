@@ -4,6 +4,8 @@ import uuid
 from datetime import UTC, datetime
 from decimal import Decimal
 
+from fastapi import BackgroundTasks
+
 from app.common.errors import BusinessError, NotFoundError
 from app.database.pgsql import get_pg
 from app.entity.pgsql import OrderRefund
@@ -18,6 +20,7 @@ from app.schemas.order_refund import (
     OrderRefundAuditIn,
     OrderRefundOut,
 )
+from app.services.notification_service import notification_service
 
 
 class OrderRefundService:
@@ -90,7 +93,11 @@ class OrderRefundService:
             raise NotFoundError("订单不存在")
 
     async def audit_refund(
-        self, merchant_user_id: str, refund_id: str, payload: OrderRefundAuditIn
+        self,
+        merchant_user_id: str,
+        refund_id: str,
+        payload: OrderRefundAuditIn,
+        background_tasks: BackgroundTasks,
     ) -> OrderRefundOut:
         """商家审核退款"""
         async with get_pg() as session:
@@ -170,6 +177,16 @@ class OrderRefundService:
 
                 # 3. 回滚成长值 (累计消费)
                 await point_service.update_growth(session, order.user_id, -base_amount)
+
+                # 4. 发送通知
+                background_tasks.add_task(
+                    notification_service.create_notification,
+                    str(order.user_id),
+                    "order",
+                    "退款申请已通过",
+                    f"您的订单 {order.order_no} 退款审核已通过，退款即将原路返回。",
+                    f"/member/orders/{order.id}",
+                )
             else:
                 # 拒绝退款 -> 恢复到原状态，但标记为已打回
                 refund.status = "rejected"
@@ -181,6 +198,16 @@ class OrderRefundService:
                     order.status = "shipped"
                 else:
                     order.status = "paid"
+
+                # 5. 发送拒绝退款通知
+                background_tasks.add_task(
+                    notification_service.create_notification,
+                    str(order.user_id),
+                    "order",
+                    "退款申请被驳回",
+                    f"您的订单 {order.order_no} 退款申请已被驳回。商家回复：{payload.merchant_reply or '无'}",
+                    f"/member/orders/{order.id}",
+                )
 
             await session.flush()
             return OrderRefundOut.model_validate(refund)

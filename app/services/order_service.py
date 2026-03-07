@@ -30,7 +30,9 @@ from app.utils import generate_order_no
 class OrderService:
     """订单服务"""
 
-    async def create_from_cart(self, user_id: str, payload: OrderCreateIn) -> OrderOut:
+    async def create_from_cart(
+        self, user_id: str, payload: OrderCreateIn, background_tasks: BackgroundTasks
+    ) -> OrderOut:
         """从购物车创建订单"""
         async with get_pg() as session:
             # 1. 验证地址
@@ -212,6 +214,18 @@ class OrderService:
                 args=[str(new_order.id), user_id], countdown=900
             )
 
+            # 6.6 发送订单创建通知
+            from app.services.notification_service import notification_service
+
+            background_tasks.add_task(
+                notification_service.create_notification,
+                str(user_id),
+                "order",
+                "订单创建成功",
+                f"您的订单 {new_order.order_no} 创建成功，请在 15 分钟内完成支付。订单总额：¥{new_order.total_amount}。",
+                f"/member/orders/{new_order.id}",
+            )
+
             # 7. 组装响应
             return OrderOut(
                 id=new_order.id,
@@ -237,7 +251,9 @@ class OrderService:
                 ],
             )
 
-    async def buy_now(self, user_id: str, payload: BuyNowIn) -> OrderOut:
+    async def buy_now(
+        self, user_id: str, payload: BuyNowIn, background_tasks: BackgroundTasks
+    ) -> OrderOut:
         """立即购买：绕过购物车直接创建订单"""
         async with get_pg() as session:
             # 1. 验证地址
@@ -383,6 +399,18 @@ class OrderService:
                 args=[str(new_order.id), user_id], countdown=900
             )
 
+            # 6.6 发送订单创建通知
+            from app.services.notification_service import notification_service
+
+            background_tasks.add_task(
+                notification_service.create_notification,
+                str(user_id),
+                "order",
+                "订单创建成功",
+                f"您的订单 {new_order.order_no} 创建成功，请在 15 分钟内完成支付。订单总额：¥{new_order.total_amount}。",
+                f"/member/orders/{new_order.id}",
+            )
+
             # 7. 组装响应
             return OrderOut(
                 id=new_order.id,
@@ -511,7 +539,9 @@ class OrderService:
             order.status = "cancelled"
             await session.flush()
 
-    async def pay_order(self, user_id: str, order_id: str) -> None:
+    async def pay_order(
+        self, user_id: str, order_id: str, background_tasks: BackgroundTasks
+    ) -> None:
         """模拟支付订单"""
         async with get_pg() as session:
             # 1. 获取订单
@@ -546,6 +576,18 @@ class OrderService:
             order.status = "paid"
             order.paid_at = datetime.now(UTC)
             await session.flush()
+
+            from app.services.notification_service import notification_service
+
+            # 发送支付成功通知
+            background_tasks.add_task(
+                notification_service.create_notification,
+                str(order.user_id),
+                "order",
+                "订单支付成功",
+                f"您的订单 {order.order_no} 已成功支付 ¥{order.total_amount}，我们会尽快为您安排发货。",
+                f"/member/orders/{order.id}",
+            )
 
             # 5. 会员积分与成长值
             from app.services.point_service import point_service
@@ -585,6 +627,17 @@ class OrderService:
 
             # 触发后台真实物流模拟
             from app.services.logistics_service import logistics_service
+            from app.services.notification_service import notification_service
+
+            # 0. 发送站内信通知
+            background_tasks.add_task(
+                notification_service.create_notification,
+                str(order.user_id),
+                "order",
+                "订单已发货",
+                f"您的订单 {order.order_no} 已经通过 {order.courier_name} 发货。运单号：{order.tracking_no}。",
+                f"/member/orders/{order.id}",
+            )
 
             # 1. 立即记录起点
             await logistics_service.add_initial_log(
@@ -602,7 +655,9 @@ class OrderService:
                 address_id=order.address_id,
             )
 
-    async def receipt_order(self, user_id: str, order_id: str) -> None:
+    async def receipt_order(
+        self, user_id: str, order_id: str, background_tasks: BackgroundTasks
+    ) -> None:
         """确认收货"""
         async with get_pg() as session:
             order = await orders_repo.get_by_id(session, order_id)
@@ -615,6 +670,17 @@ class OrderService:
             order.status = "completed"
             order.completed_at = datetime.now(UTC)
             await session.flush()
+
+            from app.services.notification_service import notification_service
+
+            background_tasks.add_task(
+                notification_service.create_notification,
+                str(order.user_id),
+                "order",
+                "订单已确认收货",
+                f"您的订单 {order.order_no} 交易已完成。期待您的评价！",
+                f"/member/orders/{order.id}",
+            )
 
     async def get_merchant_orders(
         self,

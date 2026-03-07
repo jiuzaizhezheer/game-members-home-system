@@ -141,7 +141,10 @@ async def audit_refund(
     refund_id: Annotated[str, Path(description="退款记录ID")],
     payload: Annotated[OrderRefundAuditIn, Body(description="审核结果")],
     refund_service: Annotated[OrderRefundService, Depends(get_order_refund_service)],
+    background_tasks: BackgroundTasks,
 ) -> SuccessResponse[OrderRefundOut]:
     """商家审核订单退款维权"""
-    refund = await refund_service.audit_refund(user_id, refund_id, payload)
+    refund = await refund_service.audit_refund(
+        user_id, refund_id, payload, background_tasks
+    )
     return SuccessResponse[OrderRefundOut](message="审批成功", data=refund)

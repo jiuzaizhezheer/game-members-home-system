@@ -9,6 +9,7 @@ from .coupons import Coupon
 from .favorites import Favorite
 from .group_members import GroupMember
 from .merchants import Merchant
+from .notifications import SystemNotification
 from .order_items import OrderItem
 from .order_logistics import OrderLogistics
 from .order_refunds import OrderRefund
@@ -26,26 +27,27 @@ from .users import User
 __all__ = [
     "Address",
     "AdminLog",
-    "CartItem",
+    "Banner",
     "Cart",
+    "CartItem",
     "Category",
     "CommunityGroup",
     "Coupon",
     "Favorite",
     "GroupMember",
     "Merchant",
-    "OrderItem",
     "Order",
+    "OrderItem",
+    "OrderLogistics",
+    "OrderRefund",
     "Payment",
     "PointLog",
     "Post",
-    "ProductCategory",
     "Product",
+    "ProductCategory",
     "PromotionProduct",
     "Promotion",
-    "UserCoupon",
+    "SystemNotification",
     "User",
-    "OrderRefund",
-    "Banner",
-    "OrderLogistics",
+    "UserCoupon",
 ]

@@ -694,5 +694,55 @@ async def table_structure_patch_21():
     await pg_engine.dispose()
 
 
+async def table_structure_patch_22():
+    """创建系统消息通知表 (system_notifications)"""
+    async with pg_engine.begin() as conn:
+        print("Creating system_notifications table...")
+        await conn.execute(
+            text(
+                """
+            CREATE TABLE IF NOT EXISTS system_notifications (
+                id              uuid PRIMARY KEY,
+                user_id         uuid NOT NULL,
+                type            varchar(20) NOT NULL,
+                title           varchar(200) NOT NULL,
+                content         text NOT NULL,
+                link            varchar(500),
+                is_read         boolean NOT NULL DEFAULT false,
+                created_at      timestamptz NOT NULL DEFAULT now(),
+                updated_at      timestamptz NOT NULL DEFAULT now(),
+                CONSTRAINT fk_system_notifications_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+            );
+            """
+            )
+        )
+        await conn.execute(
+            text(
+                "ALTER TABLE system_notifications ADD COLUMN IF NOT EXISTS updated_at timestamptz NOT NULL DEFAULT now();"
+            )
+        )
+        await conn.execute(
+            text("COMMENT ON TABLE system_notifications IS '系统消息通知表';")
+        )
+        await conn.execute(
+            text(
+                "CREATE INDEX IF NOT EXISTS idx_system_notifications_user ON system_notifications(user_id);"
+            )
+        )
+        await conn.execute(
+            text(
+                "CREATE INDEX IF NOT EXISTS idx_system_notifications_type ON system_notifications(type);"
+            )
+        )
+        await conn.execute(
+            text(
+                "CREATE INDEX IF NOT EXISTS idx_system_notifications_read ON system_notifications(is_read);"
+            )
+        )
+        print("Done!")
+
+    await pg_engine.dispose()
+
+
 if __name__ == "__main__":
-    asyncio.run(table_structure_patch_21())
+    asyncio.run(table_structure_patch_22())
