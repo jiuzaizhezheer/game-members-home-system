@@ -1,6 +1,14 @@
 # Game Members Home System
 
-这是一个基于 FastAPI 构建的游戏会员之家系统，采用分层架构设计，具有清晰的代码组织结构。
+基于 FastAPI 的「游戏会员之家」后端服务，提供业务 API、通知推送、消息与订单等能力。项目采用清晰的分层组织方式（路由 / schema / service / repo / entity / 数据库基础设施），并配套 Celery 进行异步/定时任务处理。
+
+## 技术栈
+
+- Web：FastAPI + Uvicorn
+- 数据：PostgreSQL（业务主库）/ MongoDB（部分互动与内容数据）/ Redis（缓存、锁、计数等）
+- 异步任务：Celery + RabbitMQ
+- 通知：WebSocket
+- 依赖管理：PDM（Python >= 3.12）
 
 ## 依赖管理约定（重要）
 
@@ -11,70 +19,110 @@
 - 升级依赖：`pdm add <pkg>@<version>`
 - 只做安装/还原环境：`pdm install`
 
-## 项目结构
+## 快速开始
+
+### 1) 准备环境
+
+- Python >= 3.12
+- PDM >= 2.26.1
+- Docker（推荐，用于拉起 PostgreSQL/MongoDB/Redis/RabbitMQ）
+
+### 2) 配置环境变量
+
+复制示例配置并按需填写：
+
+```bash
+cp .env.example .env
+```
+
+```powershell
+Copy-Item .env.example .env
+```
+
+环境变量项见 [.env.example](file:///d:/Codes/graduation-project/game-members-home-system/.env.example)；其中 `SECRET_KEY` 必须设置为你自己的安全随机值。
+
+### 3) 启动依赖服务（推荐）
+
+```bash
+make docker-up
+```
+
+如果本机没有 `make`，可直接使用：
+
+```bash
+docker compose up -d
+```
+
+默认端口：
+
+- PostgreSQL：5432
+- MongoDB：27017
+- Redis：6379
+- RabbitMQ：5672（管理台 15672）
+
+### 4) 安装依赖并启动后端
+
+```bash
+make dev-install
+make run
+```
+
+如果本机没有 `make`，可直接使用：
+
+```bash
+pdm install -G dev
+pdm run uvicorn app.main:app --reload
+```
+
+服务默认启动在 `http://127.0.0.1:8000`，可访问：
+
+- OpenAPI：`/docs`
+- ReDoc：`/redoc`
+
+## 常用命令
+
+Makefile 已封装常用开发命令（见 [Makefile](file:///d:/Codes/graduation-project/game-members-home-system/Makefile)）：
+
+- 安装依赖：`make install` / `make dev-install`
+- 启动开发服务：`make run`
+- 拉起/关闭依赖：`make docker-up` / `make docker-down`
+- 一键质量检查：`make check`（format + lint + typecheck + test）
+
+### Celery
+
+```bash
+pdm run celery -A app.tasks.celery_worker worker --loglevel=info -P solo
+pdm run celery -A app.tasks.celery_worker beat --loglevel=info
+```
+
+### 数据库补丁脚本
+
+```bash
+pdm run python -m app.database.pgsql.table_structure_patch
+```
+
+## 目录结构（概览）
 
 ```
 game-members-home-system/
-├── .github/                                # GitHub 配置目录
-│   └── workflows/                          # GitHub Actions 工作流配置
-│       ├── ci.yml                          # CI 持续集成工作流
-│       ├── dev-deploy.yml                  # 开发环境部署工作流
-│       └── pr-check.yml                    # Pull Request 检查工作流
-├── app/                                    # 主应用程序目录
-│   ├── main.py                             # 程序入口文件，负责应用的初始化和装配
-│   ├── api/                                # API 接口层，处理 HTTP 请求和响应
-│   │   ├── __init__.py
-│   │   ├── deps.py                         # 依赖项定义
-│   │   ├── router.py                       # 路由聚合
-│   │   └── routers/                        # 具体路由实现
-│   ├── core/                               # 核心基础设施，提供配置、安全、日志等核心功能
-│   │   ├── __init__.py
-│   │   ├── config.py                       # 应用配置管理
-│   │   ├── exceptions.py                   # 异常定义和处理
-│   │   ├── lifespan.py                     # 应用生命周期管理
-│   │   ├── logging.py                      # 日志配置
-│   │   └── security.py                     # 安全相关功能（密码、JWT等）
-│   ├── crud/                               # 数据库操作层，封装增删改查操作
-│   │   ├── __init__.py
-│   │   └── base.py                         # CRUD 基类
-│   ├── database/                           # 数据库基础设施，提供连接和会话管理
-│   │   ├── __init__.py
-│   │   ├── base.py                         # 数据库基类定义
-│   │   └── session.py                      # 数据库会话管理
-│   ├── models/                             # ORM 模型，定义数据库表结构
-│   ├── schemas/                            # Pydantic 模型，定义数据验证和序列化
-│   │   ├── __init__.py
-│   │   └── common.py                       # 通用数据模型
-│   ├── services/                           # 业务逻辑层，实现核心业务逻辑
-│   ├── tasks/                              # 后台任务，处理异步和定时任务
-│   │   ├── __init__.py
-│   │   └── celery_worker.py                # Celery 工作进程配置
-│   ├── tests/                              # 测试，包含所有单元测试和集成测试
-│   │   ├── __init__.py
-│   │   ├── conftest.py                     # 测试配置
-│   │   └── env_test                        # Python环境测试
-│   └── utils/                              # 工具函数，提供通用工具方法
-│       ├── __init__.py
-│       └── time.py                         # 时间处理工具
-├── .env                                    # 环境变量配置文件
-├── .gitignore                              # Git 忽略文件配置
-├── .pre-commit-config.yaml                 # Pre-commit 钩子配置
-├── docker-compose.yml                      # Docker Compose 编排配置
-├── Dockerfile                              # Docker 镜像构建文件
-├── Makefile                                # 常用命令脚本
-├── pdm.lock                                # PDM 锁定文件
-├── pyproject.toml                          # 项目配置和依赖管理
-└── README.md                               # 项目说明文档
+├── app/
+│   ├── main.py                     # FastAPI 应用入口
+│   ├── api/                        # 路由聚合与依赖
+│   │   ├── deps.py
+│   │   ├── router.py
+│   │   └── routers/                # 各业务路由
+│   ├── schemas/                    # 请求/响应 DTO（Pydantic）
+│   ├── services/                   # 业务编排层
+│   ├── repo/                       # 数据访问层（对 DB/session 的封装）
+│   ├── entity/                     # 实体定义（pgsql/mongodb）
+│   ├── database/                   # pgsql/mongodb/redis 基础设施与初始化脚本
+│   ├── core/                       # 配置、生命周期、WebSocket 管理等
+│   ├── middleware/                 # 全局异常、安全、日志等中间件能力
+│   ├── tasks/                      # Celery worker/beat
+│   └── utils/                      # 通用工具
+├── scripts/                        # 运维/初始化脚本
+├── docker-compose.yml              # 本地依赖编排
+├── .env.example                    # 环境变量示例
+├── pyproject.toml                  # PDM 配置与依赖
+└── Makefile                        # 常用命令封装
 ```
-
-### 启动 fastapi
-uvicorn app.main:app --host 127.0.0.1 --port 8000
-
-### 启动 celery worker
-pdm run celery -A app.tasks.celery_worker worker --loglevel=info -P solo
-
-### 启动 celery beat
-pdm run celery -A app.tasks.celery_worker beat --loglevel=info
-
-### 数据库补丁脚本
-pdm run python -m app.database.pgsql.table_structure_patch
