@@ -24,7 +24,7 @@ from app.schemas.order import (
     OrderOut,
     OrderShipIn,
 )
-from app.utils import generate_order_no
+from app.utils import check_operation_lock, generate_order_no
 
 
 class OrderService:
@@ -34,6 +34,8 @@ class OrderService:
         self, user_id: str, payload: OrderCreateIn, background_tasks: BackgroundTasks
     ) -> OrderOut:
         """从购物车创建订单"""
+        if await check_operation_lock(f"oplock:order:create:user:{user_id}", 15):
+            raise BusinessError(detail="请勿重复提交")
         async with get_pg() as session:
             from app.database.redis import get_redis
             from app.services.redis_stock_service import redis_stock_service
@@ -123,8 +125,9 @@ class OrderService:
                             session, item.product_id, item.quantity
                         )
                         if not success:
+                            p = item.product
                             raise BusinessError(
-                                detail=f"商品 {item.product.name} 库存不足"
+                                detail=f"商品 {(p.name if p else str(item.product_id))} 库存不足"
                             )
             except Exception:
                 if redis_deducted:
@@ -278,6 +281,8 @@ class OrderService:
         self, user_id: str, payload: BuyNowIn, background_tasks: BackgroundTasks
     ) -> OrderOut:
         """立即购买：绕过购物车直接创建订单"""
+        if await check_operation_lock(f"oplock:order:buy_now:user:{user_id}", 15):
+            raise BusinessError(detail="请勿重复提交")
         async with get_pg() as session:
             from app.database.redis import get_redis
             from app.services.redis_stock_service import redis_stock_service
@@ -505,14 +510,15 @@ class OrderService:
                         )
                         is_reviewed = r is not None
 
+                    p = i.product
                     oi_list.append(
                         OrderItemOut(
                             id=i.id,
                             product_id=i.product_id,
                             quantity=i.quantity,
                             unit_price=i.unit_price,
-                            product_name=i.product.name,
-                            product_image=i.product.image_url,
+                            product_name=(p.name if p else "已删除商品"),
+                            product_image=(p.image_url if p else None),
                             is_reviewed=is_reviewed,
                         )
                     )
@@ -542,14 +548,15 @@ class OrderService:
                     )
                     is_reviewed = r is not None
 
+                p = i.product
                 oi_list.append(
                     OrderItemOut(
                         id=i.id,
                         product_id=i.product_id,
                         quantity=i.quantity,
                         unit_price=i.unit_price,
-                        product_name=i.product.name,
-                        product_image=i.product.image_url,
+                        product_name=(p.name if p else "已删除商品"),
+                        product_image=(p.image_url if p else None),
                         is_reviewed=is_reviewed,
                     )
                 )
@@ -558,6 +565,8 @@ class OrderService:
 
     async def cancel_order(self, user_id: str, order_id: str) -> None:
         """取消订单"""
+        if await check_operation_lock(f"oplock:order:cancel:{order_id}", 15):
+            raise BusinessError(detail="请勿重复提交")
         async with get_pg() as session:
             from app.database.redis import get_redis
             from app.services.redis_stock_service import redis_stock_service
@@ -598,6 +607,8 @@ class OrderService:
         self, user_id: str, order_id: str, background_tasks: BackgroundTasks
     ) -> None:
         """模拟支付订单"""
+        if await check_operation_lock(f"oplock:order:pay:{order_id}", 15):
+            raise BusinessError(detail="请勿重复提交")
         async with get_pg() as session:
             # 1. 获取订单
             order = await orders_repo.get_by_id(session, order_id)
@@ -771,8 +782,8 @@ class OrderService:
                         product_id=i.product_id,
                         quantity=i.quantity,
                         unit_price=i.unit_price,
-                        product_name=i.product.name,
-                        product_image=i.product.image_url,
+                        product_name=(i.product.name if i.product else "已删除商品"),
+                        product_image=(i.product.image_url if i.product else None),
                         is_reviewed=False,
                     )
                     for i in items

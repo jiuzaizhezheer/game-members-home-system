@@ -47,6 +47,7 @@ async def get_list_by_merchant(
     page: int = 1,
     page_size: int = 10,
     keyword: str | None = None,
+    category_id: str | None = None,
     status: str | None = None,
 ) -> tuple[list[Product], int]:
     """获取商家的商品列表（分页）"""
@@ -60,6 +61,15 @@ async def get_list_by_merchant(
     # 状态筛选
     if status:
         base_stmt = base_stmt.where(Product.status == status)
+
+    if category_id:
+        base_stmt = base_stmt.where(
+            Product.id.in_(
+                select(ProductCategory.product_id).where(
+                    ProductCategory.category_id == category_id
+                )
+            )
+        )
 
     # 获取总数
     count_stmt = select(func.count()).select_from(base_stmt.subquery())

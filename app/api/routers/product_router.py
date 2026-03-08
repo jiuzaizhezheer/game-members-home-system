@@ -83,6 +83,7 @@ async def get_my_products(
     page: Annotated[int, Query(ge=1, description="页码")] = 1,
     page_size: Annotated[int, Query(ge=1, le=100, description="每页数量")] = 10,
     keyword: Annotated[str | None, Query(description="搜索关键字")] = None,
+    category_id: Annotated[str | None, Query(description="分类ID")] = None,
     status_filter: Annotated[
         Literal["on", "off"] | None, Query(alias="status", description="状态筛选")
     ] = None,
@@ -93,6 +94,7 @@ async def get_my_products(
         page=page,
         page_size=page_size,
         keyword=keyword,
+        category_id=category_id,
         status=status_filter,
     )
     return SuccessResponse[ProductListOut](message=GET_SUCCESS, data=products)

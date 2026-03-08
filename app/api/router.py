@@ -3,6 +3,7 @@ from fastapi import APIRouter
 from app.api.routers import (
     address_router,
     admin_banner_router,
+    admin_category_router,
     admin_community_router,
     admin_coupon_router,
     admin_log_router,
@@ -64,6 +65,9 @@ api_routers.include_router(
     tags=["merchant-statistics"],
 )
 api_routers.include_router(admin_router, prefix="/admins", tags=["admin"])
+api_routers.include_router(
+    admin_category_router, prefix="/admins/categories", tags=["admin-categories"]
+)
 api_routers.include_router(
     admin_community_router, prefix="/admins/communities", tags=["admin-community"]
 )

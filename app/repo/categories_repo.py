@@ -1,9 +1,12 @@
 """分类仓储层：分类数据访问"""
 
-from sqlalchemy import select
+import uuid
+
+from sqlalchemy import delete, exists, func, select
+from sqlalchemy import update as sa_update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.entity.pgsql import Category
+from app.entity.pgsql import Category, ProductCategory
 
 
 async def get_all(session: AsyncSession) -> list[Category]:
@@ -26,3 +29,62 @@ async def get_by_ids(session: AsyncSession, category_ids: list[str]) -> list[Cat
     stmt = select(Category).where(Category.id.in_(category_ids))
     result = await session.execute(stmt)
     return list(result.scalars().all())
+
+
+async def create(session: AsyncSession, category: Category) -> None:
+    session.add(category)
+    await session.flush()
+
+
+async def delete_by_id(session: AsyncSession, category_id: uuid.UUID) -> None:
+    await session.execute(delete(Category).where(Category.id == category_id))
+    await session.flush()
+
+
+async def exists_by_name(
+    session: AsyncSession, name: str, *, exclude_id: uuid.UUID | None = None
+) -> bool:
+    stmt = exists().where(Category.name == name)
+    if exclude_id:
+        stmt = stmt.where(Category.id != exclude_id)
+    result = (await session.execute(select(stmt))).scalar()
+    return bool(result)
+
+
+async def exists_by_slug(
+    session: AsyncSession, slug: str, *, exclude_id: uuid.UUID | None = None
+) -> bool:
+    stmt = exists().where(Category.slug == slug)
+    if exclude_id:
+        stmt = stmt.where(Category.id != exclude_id)
+    result = (await session.execute(select(stmt))).scalar()
+    return bool(result)
+
+
+async def count_children(session: AsyncSession, parent_id: uuid.UUID) -> int:
+    stmt = (
+        select(func.count())
+        .select_from(Category)
+        .where(Category.parent_id == parent_id)
+    )
+    return int((await session.execute(stmt)).scalar() or 0)
+
+
+async def count_products_using_category(
+    session: AsyncSession, category_id: uuid.UUID
+) -> int:
+    stmt = (
+        select(func.count())
+        .select_from(ProductCategory)
+        .where(ProductCategory.category_id == category_id)
+    )
+    return int((await session.execute(stmt)).scalar() or 0)
+
+
+async def clear_parent_refs(session: AsyncSession, parent_id: uuid.UUID) -> None:
+    await session.execute(
+        sa_update(Category)
+        .where(Category.parent_id == parent_id)
+        .values(parent_id=None)
+    )
+    await session.flush()
