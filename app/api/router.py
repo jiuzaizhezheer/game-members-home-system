@@ -9,6 +9,7 @@ from app.api.routers import (
     admin_log_router,
     admin_merchant_router,
     admin_product_router,
+    admin_report_router,
     admin_review_router,
     admin_router,
     admin_user_router,
@@ -27,6 +28,7 @@ from app.api.routers import (
     notification_router,
     order_router,
     product_router,
+    report_router,
     review_router,
     user_router,
 )
@@ -91,5 +93,9 @@ api_routers.include_router(
 )
 api_routers.include_router(admin_log_router, prefix="/admins/logs", tags=["admin-logs"])
 api_routers.include_router(
+    admin_report_router, prefix="/admins/reports", tags=["admin-reports"]
+)
+api_routers.include_router(
     notification_router, prefix="/notifications", tags=["notifications"]
 )
+api_routers.include_router(report_router, prefix="/reports", tags=["reports"])

@@ -67,10 +67,26 @@ async def get_all_comments(
     return comments, total
 
 
-async def delete_comment(comment_id: str) -> bool:
-    """删除评论"""
-    comment = await Comment.get(PydanticObjectId(comment_id))
-    if not comment:
-        return False
-    await comment.delete()
-    return True
+async def delete_comment(comment_id: str) -> tuple[uuid.UUID, int] | None:
+    """删除评论（级联删除整棵子树）"""
+    root = await Comment.get(PydanticObjectId(comment_id))
+    if not root:
+        return None
+
+    if not root.id:
+        return None
+
+    to_delete: set[PydanticObjectId] = {root.id}
+    frontier: set[PydanticObjectId] = {root.id}
+
+    while frontier:
+        children = await Comment.find({"parent_id": {"$in": list(frontier)}}).to_list()
+        next_frontier: set[PydanticObjectId] = set()
+        for c in children:
+            if c.id and c.id not in to_delete:
+                to_delete.add(c.id)
+                next_frontier.add(c.id)
+        frontier = next_frontier
+
+    await Comment.find({"_id": {"$in": list(to_delete)}}).delete()
+    return root.post_id, len(to_delete)

@@ -20,6 +20,7 @@ from app.services import (
     OrderService,
     ProductService,
     PromotionService,
+    ReportService,
     UserService,
 )
 from app.services.order_refund_service import OrderRefundService
@@ -40,6 +41,7 @@ _favorite_service = FavoriteService()
 _message_service = MessageService()
 _community_service = CommunityService()
 _promotion_service = PromotionService()
+_report_service = ReportService()
 _order_refund_service = OrderRefundService()
 _banner_service = BannerService()
 _logistics_service = LogisticsService()
@@ -104,6 +106,10 @@ def get_community_service() -> CommunityService:
 
 def get_promotion_service() -> PromotionService:
     return _promotion_service
+
+
+def get_report_service() -> ReportService:
+    return _report_service
 
 
 def get_banner_service() -> BannerService:

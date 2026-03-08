@@ -465,8 +465,10 @@ class AdminService:
         deleted = await admin_community_repo.delete_comment(comment_id)
         if not deleted:
             raise NotFoundError("评论不存在")
+        post_id, deleted_count = deleted
         # 评论存于 MongoDB，日志写入 PostgreSQL（独立连接）
         async with get_pg() as session:
+            await community_repo.change_comment_count(session, post_id, -deleted_count)
             await admin_log_repo.create_log(
                 session,
                 admin_id=admin_uuid,

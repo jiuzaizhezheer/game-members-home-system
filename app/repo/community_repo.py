@@ -349,6 +349,17 @@ async def create_comment(session: AsyncSession, comment: Comment) -> Comment:
     return comment
 
 
+async def change_comment_count(
+    session: AsyncSession, post_id: uuid.UUID, delta: int
+) -> None:
+    stmt = update(Post).where(Post.id == post_id)
+    if delta >= 0:
+        stmt = stmt.values(comment_count=Post.comment_count + delta)
+    else:
+        stmt = stmt.values(comment_count=func.greatest(0, Post.comment_count + delta))
+    await session.execute(stmt)
+
+
 async def get_comment_list(
     session: AsyncSession,  # kept for signature consistency, unused for query
     post_id: uuid.UUID,
