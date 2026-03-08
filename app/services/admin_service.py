@@ -2,14 +2,17 @@ import uuid
 from decimal import Decimal
 
 from app.common.constants import MERCHANT_NOT_FOUND, PRODUCT_NOT_FOUND, USER_NOT_FOUND
-from app.common.errors import NotFoundError
+from app.common.errors import BusinessError, DuplicateResourceError, NotFoundError
 from app.database.pgsql import get_pg
+from app.database.redis import get_redis
+from app.entity.pgsql import Category
 from app.repo import (
     admin_community_repo,
     admin_log_repo,
     admin_products_repo,
     admin_stats_repo,
     admin_users_repo,
+    categories_repo,
     community_repo,
     products_repo,
 )
@@ -21,10 +24,12 @@ from app.schemas.admin import (
     AdminUserItemOut,
     AdminUserListOut,
 )
+from app.schemas.category import CategoryCreateIn, CategoryOut, CategoryUpdateIn
 from app.schemas.community import CommentItemOut, CommentListOut, PostListOut
 from app.schemas.order import OrderItemOut, OrderListOut, OrderOut
 from app.schemas.product import ProductListOut, ProductOut
 from app.schemas.review import ReviewListOut, ReviewOut, ReviewUserOut
+from app.utils.redis_cache import cache_del
 
 
 class AdminService:
@@ -223,6 +228,74 @@ class AdminService:
                 detail={"product_name": product.name},
             )
 
+    # --- 分类管理 ---
+
+    async def get_categories(self) -> list[CategoryOut]:
+        async with get_pg() as session:
+            categories = await categories_repo.get_all(session)
+            return [CategoryOut.model_validate(c) for c in categories]
+
+    async def create_category(self, payload: CategoryCreateIn) -> CategoryOut:
+        async with get_pg() as session:
+            if await categories_repo.exists_by_name(session, payload.name):
+                raise DuplicateResourceError(detail="分类名称已存在")
+            if await categories_repo.exists_by_slug(session, payload.slug):
+                raise DuplicateResourceError(detail="分类别名已存在")
+
+            category = Category(
+                name=payload.name,
+                slug=payload.slug,
+                parent_id=None,
+            )
+            await categories_repo.create(session, category)
+            async with get_redis() as redis:
+                await cache_del(redis, "cache:home:categories:v1")
+            return CategoryOut.model_validate(category)
+
+    async def update_category(
+        self, category_id: str, payload: CategoryUpdateIn
+    ) -> CategoryOut:
+        async with get_pg() as session:
+            category = await categories_repo.get_by_id(session, category_id)
+            if not category:
+                raise NotFoundError(detail="分类不存在")
+
+            if payload.name is not None and payload.name != category.name:
+                if await categories_repo.exists_by_name(
+                    session, payload.name, exclude_id=category.id
+                ):
+                    raise DuplicateResourceError(detail="分类名称已存在")
+                category.name = payload.name
+
+            if payload.slug is not None and payload.slug != category.slug:
+                if await categories_repo.exists_by_slug(
+                    session, payload.slug, exclude_id=category.id
+                ):
+                    raise DuplicateResourceError(detail="分类别名已存在")
+                category.slug = payload.slug
+
+            await session.flush()
+            async with get_redis() as redis:
+                await cache_del(redis, "cache:home:categories:v1")
+            return CategoryOut.model_validate(category)
+
+    async def delete_category(self, category_id: str) -> None:
+        async with get_pg() as session:
+            category = await categories_repo.get_by_id(session, category_id)
+            if not category:
+                raise NotFoundError(detail="分类不存在")
+
+            used_count = await categories_repo.count_products_using_category(
+                session, category.id
+            )
+            if used_count > 0:
+                raise BusinessError(detail="该分类已被商品使用，无法删除")
+
+            await categories_repo.clear_parent_refs(session, category.id)
+            await categories_repo.delete_by_id(session, category.id)
+            async with get_redis() as redis:
+                await cache_del(redis, "cache:home:categories:v1")
+
     # --- 订单管理 ---
 
     async def get_all_orders(
@@ -248,8 +321,8 @@ class AdminService:
                         product_id=i.product_id,
                         quantity=i.quantity,
                         unit_price=i.unit_price,
-                        product_name=i.product.name,
-                        product_image=i.product.image_url,
+                        product_name=(i.product.name if i.product else "已删除商品"),
+                        product_image=(i.product.image_url if i.product else None),
                         is_reviewed=False,  # 管理端暂不展示具体评价状态，或需额外查询
                     )
                     for i in items
@@ -273,8 +346,8 @@ class AdminService:
                     product_id=i.product_id,
                     quantity=i.quantity,
                     unit_price=i.unit_price,
-                    product_name=i.product.name,
-                    product_image=i.product.image_url,
+                    product_name=(i.product.name if i.product else "已删除商品"),
+                    product_image=(i.product.image_url if i.product else None),
                     is_reviewed=False,
                 )
                 for i in items

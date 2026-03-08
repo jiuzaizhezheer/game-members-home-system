@@ -24,7 +24,7 @@ from app.schemas.order import (
     OrderOut,
     OrderShipIn,
 )
-from app.utils import generate_order_no
+from app.utils import check_operation_lock, generate_order_no
 
 
 class OrderService:
@@ -34,7 +34,12 @@ class OrderService:
         self, user_id: str, payload: OrderCreateIn, background_tasks: BackgroundTasks
     ) -> OrderOut:
         """从购物车创建订单"""
+        if await check_operation_lock(f"oplock:order:create:user:{user_id}", 15):
+            raise BusinessError(detail="请勿重复提交")
         async with get_pg() as session:
+            from app.database.redis import get_redis
+            from app.services.redis_stock_service import redis_stock_service
+
             # 1. 验证地址
             address = await addresses_repo.get_by_id(session, str(payload.address_id))
             if not address or str(address.user_id) != user_id:
@@ -52,7 +57,8 @@ class OrderService:
             # ... (中间计费和扣库存逻辑保持不变) ...
             # 3. 计算总价并扣减库存
             total_amount = Decimal("0.00")
-            order_items_to_create = []
+            order_items_to_create: list[OrderItem] = []
+            redis_deducted: list[tuple[uuid.UUID, int]] = []
 
             # 获取所有商品的有效促销
             from app.services.promotion_service import PromotionService
@@ -65,197 +71,222 @@ class OrderService:
                 )
             )
 
-            # 为了防止并发问题，我们在 products_repo 中使用了 FOR UPDATE
-            for ci in cart_items:
-                # 获取该商品的最新价格 (通常下单时锁定价格)
-                product = await products_repo.get_by_id(session, str(ci.product_id))
-                if not product or product.status != "on":
-                    raise BusinessError(detail=f"商品 {ci.product_id} 已下架或不存在")
+            try:
+                async with get_redis() as redis_client:
+                    for ci in cart_items:
+                        product = await products_repo.get_by_id(
+                            session, str(ci.product_id)
+                        )
+                        if not product or product.status != "on":
+                            raise BusinessError(
+                                detail=f"商品 {ci.product_id} 已下架或不存在"
+                            )
 
-                # 扣减库存
-                success = await products_repo.deduct_stock(
-                    session, ci.product_id, ci.quantity
-                )
-                if not success:
-                    raise BusinessError(detail=f"商品 {product.name} 库存不足")
+                        ok = await redis_stock_service.try_deduct(
+                            redis_client,
+                            session,
+                            ci.product_id,
+                            ci.quantity,
+                            db_stock=int(product.stock),
+                        )
+                        if not ok:
+                            raise BusinessError(detail=f"商品 {product.name} 库存不足")
+                        redis_deducted.append((ci.product_id, ci.quantity))
 
-                # 计算价格 (应用促销)
-                product_price = Decimal(str(product.price))
-                unit_price = product_price
-                if product.id in active_promotions:
-                    promo = active_promotions[product.id]
-                    discount_value = Decimal(str(promo.discount_value))
-                    if promo.discount_type == "percent":
-                        # discount_value=20 means 20% OFF -> 80% price
-                        # discount_value=20 means 80%? No, usually 20 means 20% OFF.
-                        # Wait, in create.tsx: "输入 20 代表 20% OFF (即8折)"
-                        # So multiplier is (100 - 20) / 100 = 0.8
-                        discount_rate = (Decimal(100) - discount_value) / Decimal(100)
-                        # Ensure non-negative
-                        discount_rate = max(discount_rate, Decimal(0))
-                        unit_price = product_price * discount_rate
-                    elif promo.discount_type == "fixed":
-                        unit_price = product_price - discount_value
-                        unit_price = max(unit_price, Decimal("0.01"))  # At least 0.01
+                        product_price = Decimal(str(product.price))
+                        unit_price = product_price
+                        if product.id in active_promotions:
+                            promo = active_promotions[product.id]
+                            discount_value = Decimal(str(promo.discount_value))
+                            if promo.discount_type == "percent":
+                                discount_rate = (
+                                    Decimal(100) - discount_value
+                                ) / Decimal(100)
+                                discount_rate = max(discount_rate, Decimal(0))
+                                unit_price = product_price * discount_rate
+                            elif promo.discount_type == "fixed":
+                                unit_price = product_price - discount_value
+                                unit_price = max(unit_price, Decimal("0.01"))
 
-                # 计算小计
-                subtotal = unit_price * ci.quantity
-                total_amount += subtotal
+                        subtotal = unit_price * ci.quantity
+                        total_amount += subtotal
 
-                # 准备订单明细
-                order_items_to_create.append(
-                    OrderItem(
-                        product_id=ci.product_id,
-                        quantity=ci.quantity,
-                        unit_price=unit_price,  # Store the actual (discounted) price
-                        product=product,  # 赋值以便下文直接获取名称
-                    )
-                )
+                        order_items_to_create.append(
+                            OrderItem(
+                                product_id=ci.product_id,
+                                quantity=ci.quantity,
+                                unit_price=unit_price,
+                                product=product,
+                            )
+                        )
 
-            # 3.5 优惠券核销
-            user_coupon_id = payload.user_coupon_id
-            coupon_amount = Decimal("0.00")
-            if user_coupon_id:
-                from app.repo import coupons_repo
-                from app.services.coupon_service import CouponService
+                    for item in order_items_to_create:
+                        success = await products_repo.deduct_stock(
+                            session, item.product_id, item.quantity
+                        )
+                        if not success:
+                            p = item.product
+                            raise BusinessError(
+                                detail=f"商品 {(p.name if p else str(item.product_id))} 库存不足"
+                            )
+            except Exception:
+                if redis_deducted:
+                    async with get_redis() as redis_client:
+                        for pid, qty in redis_deducted:
+                            await redis_stock_service.release(
+                                redis_client, session, pid, qty
+                            )
+                raise
 
-                coupon_service = CouponService()
+            try:
+                user_coupon_id = payload.user_coupon_id
+                coupon_amount = Decimal("0.00")
+                if user_coupon_id:
+                    from app.repo import coupons_repo
+                    from app.services.coupon_service import CouponService
 
-                # 获取商家ID集合用于校验商家券
-                merchant_ids = {
-                    item.product.merchant_id for item in order_items_to_create
-                }
+                    coupon_service = CouponService()
 
-                user_coupon, coupon = await coupon_service.validate_coupon_for_order(
-                    uuid.UUID(user_id), user_coupon_id, total_amount, merchant_ids
-                )
+                    merchant_ids = {
+                        item.product.merchant_id for item in order_items_to_create
+                    }
 
-                # 计算优惠金额
-                if coupon.discount_type == "percent":
-                    coupon_amount = total_amount * (
-                        Decimal(str(coupon.discount_value)) / Decimal(100)
-                    )
-                else:
-                    coupon_amount = Decimal(str(coupon.discount_value))
-
-                # 确保折扣不超过总价
-                coupon_amount = min(coupon_amount, total_amount)
-                total_amount -= coupon_amount
-
-            # 3.6 积分抵扣
-            point_deduction_amount = Decimal("0.00")
-            points_consumed = Decimal("0.00")
-            if payload.use_points:
-                from app.repo import users_repo
-                from app.services.point_service import point_service
-
-                user = await users_repo.get_by_id(session, str(user_id))
-                if user and user.points > 0:
-                    # 计算最大可抵扣
-                    max_deduction, max_points = (
-                        point_service.calculate_points_deduction(
-                            user.points, total_amount
+                    user_coupon, coupon = (
+                        await coupon_service.validate_coupon_for_order(
+                            uuid.UUID(user_id),
+                            user_coupon_id,
+                            total_amount,
+                            merchant_ids,
                         )
                     )
 
-                    if payload.points_to_use is not None:
-                        # 使用用户指定的积分，但不超过最大可抵扣和用户余额
-                        actual_points = min(
-                            payload.points_to_use, max_points, user.points
+                    if coupon.discount_type == "percent":
+                        coupon_amount = total_amount * (
+                            Decimal(str(coupon.discount_value)) / Decimal(100)
                         )
-                        points_consumed = actual_points
-                        point_deduction_amount = (
-                            points_consumed
-                            / Decimal(str(point_service.POINTS_TO_CASH_RATIO))
-                        ).quantize(Decimal("0.01"))
                     else:
-                        point_deduction_amount = max_deduction
-                        points_consumed = max_points
+                        coupon_amount = Decimal(str(coupon.discount_value))
 
-                    total_amount -= point_deduction_amount
+                    coupon_amount = min(coupon_amount, total_amount)
+                    total_amount -= coupon_amount
 
-            # 4. 创建订单记录
-            new_order = Order(
-                user_id=uuid.UUID(user_id),
-                address_id=payload.address_id,
-                order_no=generate_order_no(),
-                status="pending",
-                total_amount=total_amount,
-                user_coupon_id=user_coupon_id,
-                coupon_amount=coupon_amount if user_coupon_id else None,
-                point_deduction_amount=(
-                    point_deduction_amount if point_deduction_amount > 0 else None
-                ),
-                points_consumed=points_consumed if points_consumed > 0 else None,
-            )
-            await orders_repo.create(session, new_order)
+                point_deduction_amount = Decimal("0.00")
+                points_consumed = Decimal("0.00")
+                if payload.use_points:
+                    from app.repo import users_repo
+                    from app.services.point_service import point_service
 
-            # 4.5 标记优惠券使用
-            if user_coupon_id:
-                from app.repo import coupons_repo
+                    user = await users_repo.get_by_id(session, str(user_id))
+                    if user and user.points > 0:
+                        max_deduction, max_points = (
+                            point_service.calculate_points_deduction(
+                                user.points, total_amount
+                            )
+                        )
 
-                await coupons_repo.use_user_coupon(
-                    session, user_coupon_id, new_order.id
+                        if payload.points_to_use is not None:
+                            actual_points = min(
+                                payload.points_to_use, max_points, user.points
+                            )
+                            points_consumed = actual_points
+                            point_deduction_amount = (
+                                points_consumed
+                                / Decimal(str(point_service.POINTS_TO_CASH_RATIO))
+                            ).quantize(Decimal("0.01"))
+                        else:
+                            point_deduction_amount = max_deduction
+                            points_consumed = max_points
+
+                        total_amount -= point_deduction_amount
+
+                new_order = Order(
+                    user_id=uuid.UUID(user_id),
+                    address_id=payload.address_id,
+                    order_no=generate_order_no(),
+                    status="pending",
+                    total_amount=total_amount,
+                    user_coupon_id=user_coupon_id,
+                    coupon_amount=coupon_amount if user_coupon_id else None,
+                    point_deduction_amount=(
+                        point_deduction_amount if point_deduction_amount > 0 else None
+                    ),
+                    points_consumed=points_consumed if points_consumed > 0 else None,
+                )
+                await orders_repo.create(session, new_order)
+
+                if user_coupon_id:
+                    from app.repo import coupons_repo
+
+                    await coupons_repo.use_user_coupon(
+                        session, user_coupon_id, new_order.id
+                    )
+
+                for item in order_items_to_create:
+                    item.order_id = new_order.id
+                await orders_repo.add_items(session, order_items_to_create)
+
+                cart.is_checked_out = True
+                await session.flush()
+
+                from app.tasks.celery_worker import cancel_unpaid_order_task
+
+                cancel_unpaid_order_task.apply_async(
+                    args=[str(new_order.id), user_id], countdown=900
                 )
 
-            # 5. 关联订单明细并保存
-            for item in order_items_to_create:
-                item.order_id = new_order.id
-            await orders_repo.add_items(session, order_items_to_create)
+                from app.services.notification_service import notification_service
 
-            # 6. 标记购物车为已结算 (而不是仅仅清空项目)
-            cart.is_checked_out = True
-            await session.flush()
+                background_tasks.add_task(
+                    notification_service.create_notification,
+                    str(user_id),
+                    "order",
+                    "订单创建成功",
+                    f"您的订单 {new_order.order_no} 创建成功，请在 15 分钟内完成支付。订单总额：¥{new_order.total_amount}。",
+                    f"/member/orders/{new_order.id}",
+                )
 
-            # 6.5 触发超时未支付自动取消任务 (15分钟 = 900秒)
-            from app.tasks.celery_worker import cancel_unpaid_order_task
-
-            cancel_unpaid_order_task.apply_async(
-                args=[str(new_order.id), user_id], countdown=900
-            )
-
-            # 6.6 发送订单创建通知
-            from app.services.notification_service import notification_service
-
-            background_tasks.add_task(
-                notification_service.create_notification,
-                str(user_id),
-                "order",
-                "订单创建成功",
-                f"您的订单 {new_order.order_no} 创建成功，请在 15 分钟内完成支付。订单总额：¥{new_order.total_amount}。",
-                f"/member/orders/{new_order.id}",
-            )
-
-            # 7. 组装响应
-            return OrderOut(
-                id=new_order.id,
-                order_no=new_order.order_no,
-                status=new_order.status,
-                total_amount=new_order.total_amount,
-                address_id=new_order.address_id,
-                created_at=new_order.created_at,
-                user_coupon_id=new_order.user_coupon_id,
-                coupon_amount=new_order.coupon_amount,
-                refund_status=None,
-                items=[
-                    OrderItemOut(
-                        id=oi.id,
-                        product_id=oi.product_id,
-                        quantity=oi.quantity,
-                        unit_price=oi.unit_price,
-                        product_name=oi.product.name,
-                        product_image=oi.product.image_url,
-                        is_reviewed=False,  # 新订单肯定未评价
-                    )
-                    for oi in order_items_to_create
-                ],
-            )
+                return OrderOut(
+                    id=new_order.id,
+                    order_no=new_order.order_no,
+                    status=new_order.status,
+                    total_amount=new_order.total_amount,
+                    address_id=new_order.address_id,
+                    created_at=new_order.created_at,
+                    user_coupon_id=new_order.user_coupon_id,
+                    coupon_amount=new_order.coupon_amount,
+                    refund_status=None,
+                    items=[
+                        OrderItemOut(
+                            id=oi.id,
+                            product_id=oi.product_id,
+                            quantity=oi.quantity,
+                            unit_price=oi.unit_price,
+                            product_name=oi.product.name,
+                            product_image=oi.product.image_url,
+                            is_reviewed=False,
+                        )
+                        for oi in order_items_to_create
+                    ],
+                )
+            except Exception:
+                if redis_deducted:
+                    async with get_redis() as redis_client:
+                        for pid, qty in redis_deducted:
+                            await redis_stock_service.release(
+                                redis_client, session, pid, qty
+                            )
+                raise
 
     async def buy_now(
         self, user_id: str, payload: BuyNowIn, background_tasks: BackgroundTasks
     ) -> OrderOut:
         """立即购买：绕过购物车直接创建订单"""
+        if await check_operation_lock(f"oplock:order:buy_now:user:{user_id}", 15):
+            raise BusinessError(detail="请勿重复提交")
         async with get_pg() as session:
+            from app.database.redis import get_redis
+            from app.services.redis_stock_service import redis_stock_service
+
             # 1. 验证地址
             address = await addresses_repo.get_by_id(session, str(payload.address_id))
             if not address or str(address.user_id) != user_id:
@@ -266,174 +297,194 @@ class OrderService:
             if not product or product.status != "on":
                 raise BusinessError(detail="商品已下架或不存在")
 
-            # 3. 扣减库存
-            success = await products_repo.deduct_stock(
-                session, payload.product_id, payload.quantity
-            )
-            if not success:
-                raise BusinessError(detail=f"商品 {product.name} 库存不足")
-
-            # 4. 计算总价 (应用促销)
-            from app.services.promotion_service import PromotionService
-
-            promotion_service = PromotionService()
-            active_promotions = (
-                await promotion_service.get_active_promotions_by_product_ids(
-                    [product.id]
-                )
-            )
-
-            product_price = Decimal(str(product.price))
-            unit_price = product_price
-            if product.id in active_promotions:
-                promo = active_promotions[product.id]
-                discount_value = Decimal(str(promo.discount_value))
-                if promo.discount_type == "percent":
-                    discount_rate = (Decimal(100) - discount_value) / Decimal(100)
-                    discount_rate = max(discount_rate, Decimal(0))
-                    unit_price = product_price * discount_rate
-                elif promo.discount_type == "fixed":
-                    unit_price = product_price - discount_value
-                    unit_price = max(unit_price, Decimal("0.01"))
-
-            total_amount = unit_price * payload.quantity
-
-            # 4.5 优惠券核销
-            user_coupon_id = payload.user_coupon_id
-            coupon_amount = Decimal("0.00")
-            if user_coupon_id:
-                from app.services.coupon_service import CouponService
-
-                coupon_service = CouponService()
-
-                user_coupon, coupon = await coupon_service.validate_coupon_for_order(
-                    uuid.UUID(user_id),
-                    user_coupon_id,
-                    total_amount,
-                    {product.merchant_id},
-                )
-
-                # 计算优惠金额
-                if coupon.discount_type == "percent":
-                    coupon_amount = total_amount * (
-                        Decimal(str(coupon.discount_value)) / Decimal(100)
+            redis_deducted = False
+            try:
+                async with get_redis() as redis_client:
+                    ok = await redis_stock_service.try_deduct(
+                        redis_client,
+                        session,
+                        payload.product_id,
+                        payload.quantity,
+                        db_stock=int(product.stock),
                     )
-                else:
-                    coupon_amount = Decimal(str(coupon.discount_value))
+                    if not ok:
+                        raise BusinessError(detail=f"商品 {product.name} 库存不足")
+                    redis_deducted = True
 
-                # 确保折扣不超过总价
-                coupon_amount = min(coupon_amount, total_amount)
-                total_amount -= coupon_amount
+                    success = await products_repo.deduct_stock(
+                        session, payload.product_id, payload.quantity
+                    )
+                    if not success:
+                        raise BusinessError(detail=f"商品 {product.name} 库存不足")
+            except Exception:
+                if redis_deducted:
+                    async with get_redis() as redis_client:
+                        await redis_stock_service.release(
+                            redis_client, session, payload.product_id, payload.quantity
+                        )
+                raise
 
-            # 4.6 积分抵扣
-            point_deduction_amount = Decimal("0.00")
-            points_consumed = Decimal("0.00")
-            if payload.use_points:
-                from app.repo import users_repo
-                from app.services.point_service import point_service
+            try:
+                from app.services.promotion_service import PromotionService
 
-                user = await users_repo.get_by_id(session, str(user_id))
-                if user and user.points > 0:
-                    # 计算最大可抵扣
-                    max_deduction, max_points = (
-                        point_service.calculate_points_deduction(
-                            user.points, total_amount
+                promotion_service = PromotionService()
+                active_promotions = (
+                    await promotion_service.get_active_promotions_by_product_ids(
+                        [product.id]
+                    )
+                )
+
+                product_price = Decimal(str(product.price))
+                unit_price = product_price
+                if product.id in active_promotions:
+                    promo = active_promotions[product.id]
+                    discount_value = Decimal(str(promo.discount_value))
+                    if promo.discount_type == "percent":
+                        discount_rate = (Decimal(100) - discount_value) / Decimal(100)
+                        discount_rate = max(discount_rate, Decimal(0))
+                        unit_price = product_price * discount_rate
+                    elif promo.discount_type == "fixed":
+                        unit_price = product_price - discount_value
+                        unit_price = max(unit_price, Decimal("0.01"))
+
+                total_amount = unit_price * payload.quantity
+
+                user_coupon_id = payload.user_coupon_id
+                coupon_amount = Decimal("0.00")
+                if user_coupon_id:
+                    from app.services.coupon_service import CouponService
+
+                    coupon_service = CouponService()
+
+                    user_coupon, coupon = (
+                        await coupon_service.validate_coupon_for_order(
+                            uuid.UUID(user_id),
+                            user_coupon_id,
+                            total_amount,
+                            {product.merchant_id},
                         )
                     )
 
-                    if payload.points_to_use is not None:
-                        # 使用用户指定的积分，但不超过最大可抵扣和用户余额
-                        actual_points = min(
-                            payload.points_to_use, max_points, user.points
+                    if coupon.discount_type == "percent":
+                        coupon_amount = total_amount * (
+                            Decimal(str(coupon.discount_value)) / Decimal(100)
                         )
-                        points_consumed = actual_points
-                        point_deduction_amount = (
-                            points_consumed
-                            / Decimal(str(point_service.POINTS_TO_CASH_RATIO))
-                        ).quantize(Decimal("0.01"))
                     else:
-                        point_deduction_amount = max_deduction
-                        points_consumed = max_points
+                        coupon_amount = Decimal(str(coupon.discount_value))
 
-                    total_amount -= point_deduction_amount
+                    coupon_amount = min(coupon_amount, total_amount)
+                    total_amount -= coupon_amount
 
-            # 5. 创建订单
-            new_order = Order(
-                user_id=uuid.UUID(user_id),
-                address_id=payload.address_id,
-                order_no=generate_order_no(),
-                status="pending",
-                total_amount=total_amount,
-                user_coupon_id=user_coupon_id,
-                coupon_amount=coupon_amount if user_coupon_id else None,
-                point_deduction_amount=(
-                    point_deduction_amount if point_deduction_amount > 0 else None
-                ),
-                points_consumed=points_consumed if points_consumed > 0 else None,
-            )
-            await orders_repo.create(session, new_order)
+                point_deduction_amount = Decimal("0.00")
+                points_consumed = Decimal("0.00")
+                if payload.use_points:
+                    from app.repo import users_repo
+                    from app.services.point_service import point_service
 
-            # 5.5 标记优惠券使用
-            if user_coupon_id:
-                from app.repo import coupons_repo
+                    user = await users_repo.get_by_id(session, str(user_id))
+                    if user and user.points > 0:
+                        max_deduction, max_points = (
+                            point_service.calculate_points_deduction(
+                                user.points, total_amount
+                            )
+                        )
 
-                await coupons_repo.use_user_coupon(
-                    session, user_coupon_id, new_order.id
+                        if payload.points_to_use is not None:
+                            actual_points = min(
+                                payload.points_to_use, max_points, user.points
+                            )
+                            points_consumed = actual_points
+                            point_deduction_amount = (
+                                points_consumed
+                                / Decimal(str(point_service.POINTS_TO_CASH_RATIO))
+                            ).quantize(Decimal("0.01"))
+                        else:
+                            point_deduction_amount = max_deduction
+                            points_consumed = max_points
+
+                        total_amount -= point_deduction_amount
+
+                new_order = Order(
+                    user_id=uuid.UUID(user_id),
+                    address_id=payload.address_id,
+                    order_no=generate_order_no(),
+                    status="pending",
+                    total_amount=total_amount,
+                    user_coupon_id=user_coupon_id,
+                    coupon_amount=coupon_amount if user_coupon_id else None,
+                    point_deduction_amount=(
+                        point_deduction_amount if point_deduction_amount > 0 else None
+                    ),
+                    points_consumed=points_consumed if points_consumed > 0 else None,
+                )
+                await orders_repo.create(session, new_order)
+
+                if user_coupon_id:
+                    from app.repo import coupons_repo
+
+                    await coupons_repo.use_user_coupon(
+                        session, user_coupon_id, new_order.id
+                    )
+
+                order_item = OrderItem(
+                    order_id=new_order.id,
+                    product_id=payload.product_id,
+                    quantity=payload.quantity,
+                    unit_price=unit_price,
+                    product=product,
+                )
+                await orders_repo.add_items(session, [order_item])
+                await session.flush()
+
+                from app.tasks.celery_worker import cancel_unpaid_order_task
+
+                cancel_unpaid_order_task.apply_async(
+                    args=[str(new_order.id), user_id], countdown=900
                 )
 
-            # 6. 创建订单明细
-            order_item = OrderItem(
-                order_id=new_order.id,
-                product_id=payload.product_id,
-                quantity=payload.quantity,
-                unit_price=unit_price,
-                product=product,
-            )
-            await orders_repo.add_items(session, [order_item])
-            await session.flush()
+                from app.services.notification_service import notification_service
 
-            # 6.5 触发超时未支付自动取消任务 (15分钟 = 900秒)
-            from app.tasks.celery_worker import cancel_unpaid_order_task
+                background_tasks.add_task(
+                    notification_service.create_notification,
+                    str(user_id),
+                    "order",
+                    "订单创建成功",
+                    f"您的订单 {new_order.order_no} 创建成功，请在 15 分钟内完成支付。订单总额：¥{new_order.total_amount}。",
+                    f"/member/orders/{new_order.id}",
+                )
 
-            cancel_unpaid_order_task.apply_async(
-                args=[str(new_order.id), user_id], countdown=900
-            )
-
-            # 6.6 发送订单创建通知
-            from app.services.notification_service import notification_service
-
-            background_tasks.add_task(
-                notification_service.create_notification,
-                str(user_id),
-                "order",
-                "订单创建成功",
-                f"您的订单 {new_order.order_no} 创建成功，请在 15 分钟内完成支付。订单总额：¥{new_order.total_amount}。",
-                f"/member/orders/{new_order.id}",
-            )
-
-            # 7. 组装响应
-            return OrderOut(
-                id=new_order.id,
-                order_no=new_order.order_no,
-                status=new_order.status,
-                total_amount=new_order.total_amount,
-                address_id=new_order.address_id,
-                created_at=new_order.created_at,
-                user_coupon_id=new_order.user_coupon_id,
-                coupon_amount=new_order.coupon_amount,
-                refund_status=None,
-                items=[
-                    OrderItemOut(
-                        id=order_item.id,
-                        product_id=order_item.product_id,
-                        quantity=order_item.quantity,
-                        unit_price=order_item.unit_price,
-                        product_name=product.name,
-                        product_image=product.image_url,
-                        is_reviewed=False,
-                    )
-                ],
-            )
+                return OrderOut(
+                    id=new_order.id,
+                    order_no=new_order.order_no,
+                    status=new_order.status,
+                    total_amount=new_order.total_amount,
+                    address_id=new_order.address_id,
+                    created_at=new_order.created_at,
+                    user_coupon_id=new_order.user_coupon_id,
+                    coupon_amount=new_order.coupon_amount,
+                    refund_status=None,
+                    items=[
+                        OrderItemOut(
+                            id=order_item.id,
+                            product_id=order_item.product_id,
+                            quantity=order_item.quantity,
+                            unit_price=order_item.unit_price,
+                            product_name=product.name,
+                            product_image=product.image_url,
+                            is_reviewed=False,
+                        )
+                    ],
+                )
+            except Exception:
+                if redis_deducted:
+                    async with get_redis() as redis_client:
+                        await redis_stock_service.release(
+                            redis_client,
+                            session,
+                            payload.product_id,
+                            payload.quantity,
+                        )
+                raise
 
     async def get_my_orders(
         self, user_id: str, page: int = 1, page_size: int = 10
@@ -459,14 +510,15 @@ class OrderService:
                         )
                         is_reviewed = r is not None
 
+                    p = i.product
                     oi_list.append(
                         OrderItemOut(
                             id=i.id,
                             product_id=i.product_id,
                             quantity=i.quantity,
                             unit_price=i.unit_price,
-                            product_name=i.product.name,
-                            product_image=i.product.image_url,
+                            product_name=(p.name if p else "已删除商品"),
+                            product_image=(p.image_url if p else None),
                             is_reviewed=is_reviewed,
                         )
                     )
@@ -496,14 +548,15 @@ class OrderService:
                     )
                     is_reviewed = r is not None
 
+                p = i.product
                 oi_list.append(
                     OrderItemOut(
                         id=i.id,
                         product_id=i.product_id,
                         quantity=i.quantity,
                         unit_price=i.unit_price,
-                        product_name=i.product.name,
-                        product_image=i.product.image_url,
+                        product_name=(p.name if p else "已删除商品"),
+                        product_image=(p.image_url if p else None),
                         is_reviewed=is_reviewed,
                     )
                 )
@@ -512,7 +565,12 @@ class OrderService:
 
     async def cancel_order(self, user_id: str, order_id: str) -> None:
         """取消订单"""
+        if await check_operation_lock(f"oplock:order:cancel:{order_id}", 15):
+            raise BusinessError(detail="请勿重复提交")
         async with get_pg() as session:
+            from app.database.redis import get_redis
+            from app.services.redis_stock_service import redis_stock_service
+
             # 1. 获取订单
             order = await orders_repo.get_by_id(session, order_id)
             if not order or str(order.user_id) != user_id:
@@ -539,10 +597,18 @@ class OrderService:
             order.status = "cancelled"
             await session.flush()
 
+            async with get_redis() as redis_client:
+                for item in items:
+                    await redis_stock_service.release(
+                        redis_client, session, item.product_id, item.quantity
+                    )
+
     async def pay_order(
         self, user_id: str, order_id: str, background_tasks: BackgroundTasks
     ) -> None:
         """模拟支付订单"""
+        if await check_operation_lock(f"oplock:order:pay:{order_id}", 15):
+            raise BusinessError(detail="请勿重复提交")
         async with get_pg() as session:
             # 1. 获取订单
             order = await orders_repo.get_by_id(session, order_id)
@@ -716,8 +782,8 @@ class OrderService:
                         product_id=i.product_id,
                         quantity=i.quantity,
                         unit_price=i.unit_price,
-                        product_name=i.product.name,
-                        product_image=i.product.image_url,
+                        product_name=(i.product.name if i.product else "已删除商品"),
+                        product_image=(i.product.image_url if i.product else None),
                         is_reviewed=False,
                     )
                     for i in items

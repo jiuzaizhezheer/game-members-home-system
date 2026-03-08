@@ -1,5 +1,6 @@
 """商品服务层：商品业务逻辑"""
 
+import asyncio
 from decimal import Decimal
 from typing import Literal, cast
 
@@ -10,6 +11,7 @@ from app.common.constants import (
 )
 from app.common.errors import DuplicateResourceError, NotFoundError
 from app.database.pgsql import get_pg
+from app.database.redis import get_redis
 from app.entity.pgsql import Product
 from app.repo import merchants_repo, products_repo
 from app.schemas.product import (
@@ -21,6 +23,8 @@ from app.schemas.product import (
     ProductStatusIn,
     ProductUpdateIn,
 )
+from app.utils.redis_cache import cache_get_json, cache_set_json
+from app.utils.redis_lock import acquire_lock, release_lock
 
 
 class ProductService:
@@ -33,6 +37,7 @@ class ProductService:
         page: int = 1,
         page_size: int = 10,
         keyword: str | None = None,
+        category_id: str | None = None,
         status: str | None = None,
     ) -> ProductListOut:
         """获取商家的商品列表"""
@@ -47,6 +52,7 @@ class ProductService:
                 page=page,
                 page_size=page_size,
                 keyword=keyword,
+                category_id=category_id,
                 status=status,
             )
             # TODO:
@@ -69,6 +75,29 @@ class ProductService:
         sort_by: str = "newest",
     ) -> ProductPublicListOut:
         """获取公开商品列表"""
+        should_cache = (
+            sort_by == "popularity_desc"
+            and page == 1
+            and not keyword
+            and not category_id
+        )
+        cache_key = f"cache:home:trending:v1:ps{page_size}" if should_cache else None
+        lock_token: str | None = None
+
+        if cache_key:
+            async with get_redis() as redis:
+                cached = await cache_get_json(redis, cache_key)
+                if cached is not None:
+                    return ProductPublicListOut.model_validate(cached)
+
+                lock_key = f"{cache_key}:lock"
+                lock_token = await acquire_lock(redis, lock_key, ttl=3)
+                if lock_token is None:
+                    await asyncio.sleep(0.05)
+                    cached2 = await cache_get_json(redis, cache_key)
+                    if cached2 is not None:
+                        return ProductPublicListOut.model_validate(cached2)
+
         async with get_pg() as session:
             products_data, total = await products_repo.get_public_list(
                 session,
@@ -78,12 +107,6 @@ class ProductService:
                 category_id=category_id,
                 sort_by=sort_by,
             )
-
-            items = []
-            for product, merchant_user_id in products_data:
-                item = ProductPublicOut.model_validate(product)
-                item.merchant_user_id = merchant_user_id
-                items.append(item)
 
             # 获取有效促销
 
@@ -128,12 +151,19 @@ class ProductService:
 
                 items.append(item)
 
-            return ProductPublicListOut(
-                items=items,
-                total=total,
-                page=page,
-                page_size=page_size,
-            )
+        out = ProductPublicListOut(
+            items=items, total=total, page=page, page_size=page_size
+        )
+
+        if cache_key:
+            async with get_redis() as redis:
+                await cache_set_json(
+                    redis, cache_key, out.model_dump(mode="json"), ttl=30
+                )
+                if lock_token:
+                    await release_lock(redis, f"{cache_key}:lock", lock_token)
+
+        return out
 
     async def get_product(self, user_id: str, product_id: str) -> ProductOut:
         """获取商品详情（商家视角，需验证归属）"""

@@ -1,5 +1,6 @@
 from .address_router import address_router
 from .admin_banner_router import router as admin_banner_router
+from .admin_category_router import admin_category_router
 from .admin_community_router import admin_community_router
 from .admin_coupon_router import router as admin_coupon_router
 from .admin_log_router import admin_log_router
@@ -50,6 +51,7 @@ __all__ = [
     "user_router",
     "cart_router",
     "admin_banner_router",
+    "admin_category_router",
     "address_router",
     "order_router",
     "message_router",
