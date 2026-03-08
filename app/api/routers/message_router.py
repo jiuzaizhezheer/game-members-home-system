@@ -2,11 +2,22 @@
 
 from typing import Annotated
 
-from fastapi import APIRouter, Body, Depends, Path, Query, status
+from fastapi import (
+    APIRouter,
+    Body,
+    Depends,
+    Path,
+    Query,
+    WebSocket,
+    WebSocketDisconnect,
+    status,
+)
 
 from app.api.deps import get_current_user_id, get_message_service
 from app.api.role import require_member_or_merchant
 from app.common.constants import GET_SUCCESS
+from app.common.enums import RoleEnum
+from app.core.websocket_manager import chat_ws_manager
 from app.schemas import SuccessResponse
 from app.schemas.message import (
     ConversationListOut,
@@ -14,6 +25,7 @@ from app.schemas.message import (
     MessageSendIn,
 )
 from app.services import MessageService
+from app.utils import decode_access_token
 
 message_router = APIRouter()
 
@@ -98,3 +110,31 @@ async def mark_as_read(
     """标记会话已读"""
     await message_service.mark_as_read(user_id, partner_user_id)
     return SuccessResponse[None](message="标记成功")
+
+
+@message_router.websocket("/ws")
+async def websocket_endpoint(websocket: WebSocket, token: str | None = None):
+    if not token:
+        await websocket.close(code=1008)
+        return
+
+    try:
+        payload = decode_access_token(token)
+        user_id = str(payload.get("sub") or "")
+        role = str(payload.get("role") or "")
+        if not user_id or role not in {RoleEnum.MEMBER, RoleEnum.MERCHANT}:
+            await websocket.close(code=1008)
+            return
+    except Exception:
+        await websocket.close(code=1008)
+        return
+
+    await chat_ws_manager.connect(websocket, user_id)
+    try:
+        while True:
+            data = await websocket.receive_text()
+            await websocket.send_text(f"pong: {data}")
+    except WebSocketDisconnect:
+        chat_ws_manager.disconnect(websocket, user_id)
+    except Exception:
+        chat_ws_manager.disconnect(websocket, user_id)

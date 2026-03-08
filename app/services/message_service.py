@@ -3,6 +3,7 @@
 from uuid import UUID
 
 from app.common.errors import BusinessError, NotFoundError
+from app.core.websocket_manager import chat_ws_manager
 from app.database.pgsql import get_pg
 from app.repo import messages_repo, users_repo
 from app.schemas.message import (
@@ -39,6 +40,21 @@ class MessageService:
             content=payload.content,
             content_type=payload.content_type,
             order_id=payload.order_id,
+        )
+
+        await chat_ws_manager.broadcast_to_user(
+            receiver_id,
+            {
+                "type": "NEW_MESSAGE",
+                "data": {
+                    "id": str(msg.id),
+                    "sender_id": user_id,
+                    "receiver_id": receiver_id,
+                    "content": msg.content.body,
+                    "content_type": msg.content.type,
+                    "created_at": msg.created_at.isoformat(),
+                },
+            },
         )
 
         return MessageItemOut(

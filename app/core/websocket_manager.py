@@ -44,3 +44,4 @@ class ConnectionManager:
 
 # 全局单例管理器
 ws_manager = ConnectionManager()
+chat_ws_manager = ConnectionManager()
