@@ -744,5 +744,162 @@ async def table_structure_patch_22():
     await pg_engine.dispose()
 
 
+async def table_structure_patch_23():
+    """创建 UGC 举报闭环表 (user_reports)"""
+    async with pg_engine.begin() as conn:
+        print("Creating user_reports table...")
+        await conn.execute(
+            text(
+                """
+            CREATE TABLE IF NOT EXISTS user_reports (
+                id              uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+                reporter_id     uuid NOT NULL,
+                target_type     varchar(16) NOT NULL,
+                target_id       varchar(64) NOT NULL,
+                reason          varchar(64) NOT NULL,
+                description     text,
+                evidence_urls   text[] DEFAULT '{}'::text[] NOT NULL,
+                status          varchar(16) NOT NULL DEFAULT 'pending',
+                result          varchar(16),
+                handled_by      uuid,
+                handled_note    varchar(255),
+                handled_at      timestamptz,
+                created_at      timestamptz NOT NULL DEFAULT now(),
+                updated_at      timestamptz NOT NULL DEFAULT now(),
+                CONSTRAINT fk_user_reports_reporter FOREIGN KEY (reporter_id) REFERENCES users(id) ON DELETE CASCADE,
+                CONSTRAINT fk_user_reports_handled_by FOREIGN KEY (handled_by) REFERENCES users(id) ON DELETE SET NULL,
+                CONSTRAINT chk_user_reports_target_type CHECK (target_type IN ('post', 'comment', 'product')),
+                CONSTRAINT chk_user_reports_status CHECK (status IN ('pending', 'handled')),
+                CONSTRAINT chk_user_reports_result CHECK (result IN ('success', 'fail'))
+            );
+            """
+            )
+        )
+        await conn.execute(text("COMMENT ON TABLE user_reports IS '用户举报工单表';"))
+        await conn.execute(
+            text(
+                "CREATE INDEX IF NOT EXISTS idx_user_reports_status_created ON user_reports(status, created_at DESC);"
+            )
+        )
+        await conn.execute(
+            text(
+                "CREATE INDEX IF NOT EXISTS idx_user_reports_target ON user_reports(target_type, target_id);"
+            )
+        )
+        await conn.execute(
+            text(
+                "CREATE INDEX IF NOT EXISTS idx_user_reports_reporter_created ON user_reports(reporter_id, created_at DESC);"
+            )
+        )
+        await conn.execute(
+            text(
+                "CREATE UNIQUE INDEX IF NOT EXISTS uq_user_reports_reporter_target_pending ON user_reports(reporter_id, target_type, target_id) WHERE status = 'pending';"
+            )
+        )
+        print("Done!")
+
+    await pg_engine.dispose()
+
+
+async def table_structure_patch_24():
+    """更新 UGC 举报闭环表状态字段 (pending/handled) 与处理结果 (success/fail)"""
+    async with pg_engine.begin() as conn:
+        print("Patching user_reports table...")
+        await conn.execute(
+            text(
+                """
+            CREATE TABLE IF NOT EXISTS user_reports (
+                id              uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+                reporter_id     uuid NOT NULL,
+                target_type     varchar(16) NOT NULL,
+                target_id       varchar(64) NOT NULL,
+                reason          varchar(64) NOT NULL,
+                description     text,
+                evidence_urls   text[] DEFAULT '{}'::text[] NOT NULL,
+                status          varchar(16) NOT NULL DEFAULT 'pending',
+                result          varchar(16),
+                handled_by      uuid,
+                handled_note    varchar(255),
+                handled_at      timestamptz,
+                created_at      timestamptz NOT NULL DEFAULT now(),
+                updated_at      timestamptz NOT NULL DEFAULT now(),
+                CONSTRAINT fk_user_reports_reporter FOREIGN KEY (reporter_id) REFERENCES users(id) ON DELETE CASCADE,
+                CONSTRAINT fk_user_reports_handled_by FOREIGN KEY (handled_by) REFERENCES users(id) ON DELETE SET NULL,
+                CONSTRAINT chk_user_reports_target_type CHECK (target_type IN ('post', 'comment', 'product')),
+                CONSTRAINT chk_user_reports_status CHECK (status IN ('pending', 'handled')),
+                CONSTRAINT chk_user_reports_result CHECK (result IN ('success', 'fail'))
+            );
+            """
+            )
+        )
+        await conn.execute(
+            text(
+                "ALTER TABLE user_reports ADD COLUMN IF NOT EXISTS result varchar(16);"
+            )
+        )
+
+        await conn.execute(
+            text(
+                "ALTER TABLE user_reports DROP CONSTRAINT IF EXISTS chk_user_reports_status;"
+            )
+        )
+        await conn.execute(
+            text(
+                "ALTER TABLE user_reports DROP CONSTRAINT IF EXISTS chk_user_reports_result;"
+            )
+        )
+
+        await conn.execute(
+            text(
+                """
+            UPDATE user_reports
+            SET
+                status = 'handled',
+                result = CASE
+                    WHEN status = 'resolved' THEN 'success'
+                    WHEN status = 'rejected' THEN 'fail'
+                    ELSE COALESCE(result, 'fail')
+                END
+            WHERE status NOT IN ('pending', 'handled');
+            """
+            )
+        )
+
+        await conn.execute(
+            text(
+                "ALTER TABLE user_reports ADD CONSTRAINT chk_user_reports_status CHECK (status IN ('pending', 'handled'));"
+            )
+        )
+        await conn.execute(
+            text(
+                "ALTER TABLE user_reports ADD CONSTRAINT chk_user_reports_result CHECK (result IN ('success', 'fail'));"
+            )
+        )
+
+        await conn.execute(
+            text(
+                "CREATE INDEX IF NOT EXISTS idx_user_reports_status_created ON user_reports(status, created_at DESC);"
+            )
+        )
+        await conn.execute(
+            text(
+                "CREATE INDEX IF NOT EXISTS idx_user_reports_target ON user_reports(target_type, target_id);"
+            )
+        )
+        await conn.execute(
+            text(
+                "CREATE INDEX IF NOT EXISTS idx_user_reports_reporter_created ON user_reports(reporter_id, created_at DESC);"
+            )
+        )
+        await conn.execute(
+            text(
+                "CREATE UNIQUE INDEX IF NOT EXISTS uq_user_reports_reporter_target_pending ON user_reports(reporter_id, target_type, target_id) WHERE status = 'pending';"
+            )
+        )
+        print("Done!")
+
+    await pg_engine.dispose()
+
+
 if __name__ == "__main__":
-    asyncio.run(table_structure_patch_22())
+    asyncio.run(table_structure_patch_24())

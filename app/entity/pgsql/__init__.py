@@ -22,6 +22,7 @@ from .products import Product
 from .promotion_products import PromotionProduct
 from .promotions import Promotion
 from .user_coupons import UserCoupon
+from .user_reports import UserReport
 from .users import User
 
 __all__ = [
@@ -50,4 +51,5 @@ __all__ = [
     "SystemNotification",
     "User",
     "UserCoupon",
+    "UserReport",
 ]

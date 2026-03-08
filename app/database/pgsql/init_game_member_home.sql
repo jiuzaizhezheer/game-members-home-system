@@ -444,3 +444,33 @@ COMMENT ON TABLE system_notifications IS '系统消息通知表';
 CREATE INDEX IF NOT EXISTS idx_system_notifications_user ON system_notifications(user_id);
 CREATE INDEX IF NOT EXISTS idx_system_notifications_type ON system_notifications(type);
 CREATE INDEX IF NOT EXISTS idx_system_notifications_read ON system_notifications(is_read);
+
+-- =========================
+-- 用户举报工单实体
+-- =========================
+CREATE TABLE IF NOT EXISTS user_reports (
+    id              uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    reporter_id     uuid NOT NULL,
+    target_type     varchar(16) NOT NULL,
+    target_id       varchar(64) NOT NULL,
+    reason          varchar(64) NOT NULL,
+    description     text,
+    evidence_urls   text[] DEFAULT '{}'::text[] NOT NULL,
+    status          varchar(16) NOT NULL DEFAULT 'pending',
+    result          varchar(16),
+    handled_by      uuid,
+    handled_note    varchar(255),
+    handled_at      timestamptz,
+    created_at      timestamptz NOT NULL DEFAULT now(),
+    updated_at      timestamptz NOT NULL DEFAULT now(),
+    CONSTRAINT fk_user_reports_reporter FOREIGN KEY (reporter_id) REFERENCES users(id) ON DELETE CASCADE,
+    CONSTRAINT fk_user_reports_handled_by FOREIGN KEY (handled_by) REFERENCES users(id) ON DELETE SET NULL,
+    CONSTRAINT chk_user_reports_target_type CHECK (target_type IN ('post', 'comment', 'product')),
+    CONSTRAINT chk_user_reports_status CHECK (status IN ('pending', 'handled')),
+    CONSTRAINT chk_user_reports_result CHECK (result IN ('success', 'fail'))
+);
+COMMENT ON TABLE user_reports IS '用户举报工单表';
+CREATE INDEX IF NOT EXISTS idx_user_reports_status_created ON user_reports(status, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_user_reports_target ON user_reports(target_type, target_id);
+CREATE INDEX IF NOT EXISTS idx_user_reports_reporter_created ON user_reports(reporter_id, created_at DESC);
+CREATE UNIQUE INDEX IF NOT EXISTS uq_user_reports_reporter_target_pending ON user_reports(reporter_id, target_type, target_id) WHERE status = 'pending';
