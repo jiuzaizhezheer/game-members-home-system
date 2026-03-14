@@ -6,8 +6,9 @@ from app.common.constants import (
     NEW_PASSWORD_SAME_AS_OLD,
     OLD_PASSWORD_ERROR,
     USER_NOT_FOUND,
+    USERNAME_OR_EMAIL_EXISTS,
 )
-from app.common.errors import NotFoundError, ValidationError
+from app.common.errors import DuplicateResourceError, NotFoundError, ValidationError
 from app.database.pgsql import get_pg
 from app.entity.pgsql import User
 from app.repo import users_repo
@@ -62,6 +63,19 @@ class UserService:
             user = await users_repo.get_by_id(session, user_id)
             if not user:
                 raise NotFoundError(USER_NOT_FOUND)
+
+            # 检查用户名或邮箱是否冲突 (仅在更新了这些字段时检查)
+            if payload.username or payload.email:
+                check_username = payload.username or user.username
+                check_email = payload.email or user.email
+                if await users_repo.exists_by_username_or_email_in_role(
+                    session,
+                    check_username,
+                    check_email,
+                    user.role,
+                    exclude_id=user.id,
+                ):
+                    raise DuplicateResourceError(USERNAME_OR_EMAIL_EXISTS)
 
             update_data = payload.model_dump(exclude_unset=True)
             for field, value in update_data.items():

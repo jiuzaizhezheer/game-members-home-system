@@ -44,36 +44,6 @@ class AdminUserListOut(BaseModel):
     page_size: int = Field(description="每页数量")
 
 
-# --- 商家管理 ---
-
-
-class AdminMerchantItemOut(BaseModel):
-    """管理端商家列表项（含用户 + 店铺信息）"""
-
-    # 用户信息
-    user_id: uuid.UUID = Field(description="用户ID")
-    username: str = Field(description="用户名")
-    email: EmailStr = Field(description="邮箱")
-    is_active: bool = Field(description="账号是否激活")
-
-    # 商家信息
-    merchant_id: uuid.UUID = Field(description="商家ID")
-    shop_name: str = Field(description="店铺名称")
-    contact_phone: str | None = Field(default=None, description="联系电话")
-    shop_desc: str | None = Field(default=None, description="店铺描述")
-    logo_url: str | None = Field(default=None, description="店铺Logo")
-    created_at: datetime = Field(description="店铺创建时间")
-
-
-class AdminMerchantListOut(BaseModel):
-    """管理端商家列表响应"""
-
-    items: list[AdminMerchantItemOut] = Field(description="商家列表")
-    total: int = Field(description="总数")
-    page: int = Field(description="当前页")
-    page_size: int = Field(description="每页数量")
-
-
 # --- 操作日志 ---
 
 

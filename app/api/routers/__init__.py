@@ -4,7 +4,6 @@ from .admin_category_router import admin_category_router
 from .admin_community_router import admin_community_router
 from .admin_coupon_router import router as admin_coupon_router
 from .admin_log_router import admin_log_router
-from .admin_merchant_router import admin_merchant_router
 from .admin_product_router import admin_product_router
 from .admin_report_router import admin_report_router
 from .admin_review_router import router as admin_review_router
@@ -33,7 +32,6 @@ __all__ = [
     "admin_community_router",
     "admin_coupon_router",
     "admin_log_router",
-    "admin_merchant_router",
     "admin_product_router",
     "admin_report_router",
     "admin_review_router",

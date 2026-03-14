@@ -53,7 +53,7 @@ async def update_my_profile(
     path="/me/password",
     dependencies=[
         require_any_role,
-        Depends(RateLimiter(counts=6, seconds=60)),
+        Depends(RateLimiter(counts=9999, seconds=60)),
     ],
     response_model=SuccessResponse[None],
     status_code=status.HTTP_200_OK,

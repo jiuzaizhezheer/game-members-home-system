@@ -1,10 +1,12 @@
 import uuid
 from datetime import datetime
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class SystemNotificationOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     id: uuid.UUID
     user_id: uuid.UUID
     type: str = Field(description="通知类型 (system, order, social)")
@@ -13,9 +15,6 @@ class SystemNotificationOut(BaseModel):
     link: str | None = Field(default=None, description="相关跳转链接")
     is_read: bool = Field(description="是否已读")
     created_at: datetime
-
-    class Config:
-        from_attributes = True
 
 
 class NotificationListOut(BaseModel):

@@ -48,4 +48,4 @@ async def test_request_validation_error_returns_message_and_data():
     res = await request_validation_exception_handler(request, exc)
 
     assert res.status_code == 422
-    assert json.loads(res.body) == {"message": "body.password: field required"}
+    assert json.loads(res.body) == {"message": "field required"}

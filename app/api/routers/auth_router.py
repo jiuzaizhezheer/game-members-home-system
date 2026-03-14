@@ -29,7 +29,7 @@ COOKIE_PATH = "/api/auths"
 
 @auth_router.get(
     path="/captcha",  # TODO: 后续可能修改为向邮箱发送验证码
-    dependencies=[Depends(RateLimiter(counts=10, seconds=30))],
+    dependencies=[Depends(RateLimiter(counts=9999, seconds=30))],
     response_model=SuccessResponse[CaptchaOut],
     status_code=status.HTTP_200_OK,
 )
@@ -47,7 +47,7 @@ async def generate_captcha(
 
 @auth_router.post(
     path="/register",
-    dependencies=[Depends(RateLimiter(counts=6, seconds=60))],
+    dependencies=[Depends(RateLimiter(counts=99999, seconds=60))],
     response_model=SuccessResponse[None],
     status_code=status.HTTP_201_CREATED,
 )
@@ -70,7 +70,7 @@ async def register(
 
 @auth_router.post(
     path="/login",
-    dependencies=[Depends(RateLimiter(counts=6, seconds=60))],
+    dependencies=[Depends(RateLimiter(counts=9999, seconds=60))],
     response_model=SuccessResponse[AccessTokenOut],
     status_code=status.HTTP_200_OK,
 )
@@ -100,7 +100,7 @@ async def login(
 
 @auth_router.post(
     path="/refresh",
-    dependencies=[Depends(RateLimiter(counts=10, seconds=60))],
+    dependencies=[Depends(RateLimiter(counts=9999, seconds=60))],
     response_model=SuccessResponse[AccessTokenOut],
     status_code=status.HTTP_200_OK,
 )
