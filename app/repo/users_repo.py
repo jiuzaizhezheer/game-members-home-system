@@ -1,3 +1,5 @@
+import uuid
+
 from sqlalchemy import exists, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -5,19 +7,26 @@ from app.entity.pgsql import User
 
 
 async def exists_by_username_or_email_in_role(
-    session: AsyncSession, username: str, email: str, role: str
+    session: AsyncSession,
+    username: str,
+    email: str,
+    role: str,
+    *,
+    exclude_id: uuid.UUID | None = None,
 ) -> bool:
     """检查同一角色下用户名或邮箱是否已存在"""
-    stmt = select(
-        exists().where(
-            User.is_active.is_(True),
-            User.role == role,
-            or_(
-                User.username == username,
-                User.email == email,
-            ),
-        )
-    )
+    conditions = [
+        User.is_active.is_(True),
+        User.role == role,
+        or_(
+            User.username == username,
+            User.email == email,
+        ),
+    ]
+    if exclude_id:
+        conditions.append(User.id != exclude_id)
+
+    stmt = select(exists().where(*conditions))
     return bool(await session.scalar(stmt))
 
 

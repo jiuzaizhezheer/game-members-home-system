@@ -1,3 +1,5 @@
+from typing import Literal
+
 from pydantic import BaseModel, EmailStr, Field, field_validator
 
 from app.common.constants import PASSWORD_MUST_CONTAIN_LETTER_AND_DIGIT
@@ -13,7 +15,7 @@ class AuthRegisterIn(BaseModel):
         max_length=128,
         description="密码，需包含字母和数字",
     )
-    role: RoleEnum = Field(description="角色")
+    role: Literal[RoleEnum.MEMBER, RoleEnum.MERCHANT] = Field(description="注册角色")
     captcha_id: str = Field(min_length=36, max_length=36, description="验证码ID")
     captcha_code: str = Field(min_length=6, max_length=6, description="验证码文本")
 

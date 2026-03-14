@@ -7,7 +7,6 @@ from app.api.routers import (
     admin_community_router,
     admin_coupon_router,
     admin_log_router,
-    admin_merchant_router,
     admin_product_router,
     admin_report_router,
     admin_review_router,
@@ -75,9 +74,6 @@ api_routers.include_router(
 )
 api_routers.include_router(
     admin_user_router, prefix="/admins/users", tags=["admin-users"]
-)
-api_routers.include_router(
-    admin_merchant_router, prefix="/admins/merchants", tags=["admin-merchants"]
 )
 api_routers.include_router(
     admin_product_router, prefix="/admins/products", tags=["admin-products"]

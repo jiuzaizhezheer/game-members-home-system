@@ -24,10 +24,7 @@ def _extract_message_from_validation_errors(errors: Sequence[object]) -> str:
     msg = first.get("msg")
     if not isinstance(msg, str) or not msg:
         return VALIDATION_ERROR
-    loc = first.get("loc")
-    if isinstance(loc, Sequence) and loc:
-        loc_str = ".".join(str(x) for x in loc)
-        return f"{loc_str}: {msg}"
+
     return msg
 
 
@@ -70,6 +67,6 @@ async def request_validation_exception_handler(
     message = _extract_message_from_validation_errors(exc.errors())
     logger.exception(message, exc_info=exc)
     return ErrorResponse.build(
-        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+        status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
         message=message,
     )

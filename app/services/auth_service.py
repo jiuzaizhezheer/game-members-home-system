@@ -3,10 +3,11 @@ from decimal import Decimal
 from app.common.constants import (
     INVALID_CREDENTIALS,
     REFRESH_TOKEN_INVALID,
+    USER_NOT_FOUND,
     USERNAME_OR_EMAIL_EXISTS,
 )
 from app.common.enums import RoleEnum
-from app.common.errors import DuplicateResourceError, UnauthorizedError
+from app.common.errors import DuplicateResourceError, NotFoundError, UnauthorizedError
 from app.database.pgsql import get_pg
 from app.entity.pgsql import Merchant, User
 from app.repo import merchants_repo, users_repo
@@ -56,8 +57,13 @@ class AuthService:
             # 验证邮箱是否存在
             user = await users_repo.get_by_email(session, payload.email, payload.role)
 
-            if not user or not verify_password(payload.password, user.password_hash):
+            if not user:
+                raise NotFoundError(USER_NOT_FOUND)
+
+            # 验证密码是否正确
+            if not verify_password(payload.password, user.password_hash):
                 raise UnauthorizedError(INVALID_CREDENTIALS)
+
             # 生成access_token 和 refresh_token
             access_token = get_access_token(str(user.id), user.role)
             refresh_token = await get_refresh_token(str(user.id), user.role)

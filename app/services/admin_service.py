@@ -1,11 +1,13 @@
 import uuid
 from decimal import Decimal
 
-from app.common.constants import MERCHANT_NOT_FOUND, PRODUCT_NOT_FOUND, USER_NOT_FOUND
+from sqlalchemy import select
+
+from app.common.constants import PRODUCT_NOT_FOUND, USER_NOT_FOUND
 from app.common.errors import BusinessError, DuplicateResourceError, NotFoundError
 from app.database.pgsql import get_pg
 from app.database.redis import get_redis
-from app.entity.pgsql import Category
+from app.entity.pgsql import Category, Merchant
 from app.repo import (
     admin_community_repo,
     admin_log_repo,
@@ -19,8 +21,6 @@ from app.repo import (
 from app.repo.reviews_repo import reviews_repo
 from app.schemas.admin import (
     AdminDashboardOut,
-    AdminMerchantItemOut,
-    AdminMerchantListOut,
     AdminUserItemOut,
     AdminUserListOut,
 )
@@ -85,13 +85,28 @@ class AdminService:
             if not user:
                 raise NotFoundError(USER_NOT_FOUND)
             await admin_users_repo.set_user_active(session, user_id, False)
+
+            action = "disable_user"
+            target_type = "user"
+            target_id = user_id
+
+            if user.role == "merchant":
+                stmt = select(Merchant).where(Merchant.user_id == user.id)
+                merchant = (await session.execute(stmt)).scalar_one_or_none()
+                if merchant:
+                    action = "disable_merchant"
+                    target_type = "merchant"
+                    target_id = str(merchant.id)
+            elif user.role == "admin":
+                target_type = "admin"
+
             await admin_log_repo.create_log(
                 session,
                 admin_id=admin_uuid,
-                action="disable_user",
-                target_type="user",
-                target_id=user_id,
-                detail={"username": user.username},
+                action=action,
+                target_type=target_type,
+                target_id=target_id,
+                detail={"message": "暂无"},
             )
 
     async def enable_user(self, user_id: str, admin_id: str) -> None:
@@ -102,85 +117,28 @@ class AdminService:
             if not user:
                 raise NotFoundError(USER_NOT_FOUND)
             await admin_users_repo.set_user_active(session, user_id, True)
+
+            action = "enable_user"
+            target_type = "user"
+            target_id = user_id
+
+            if user.role == "merchant":
+                stmt = select(Merchant).where(Merchant.user_id == user.id)
+                merchant = (await session.execute(stmt)).scalar_one_or_none()
+                if merchant:
+                    action = "enable_merchant"
+                    target_type = "merchant"
+                    target_id = str(merchant.id)
+            elif user.role == "admin":
+                target_type = "admin"
+
             await admin_log_repo.create_log(
                 session,
                 admin_id=admin_uuid,
-                action="enable_user",
-                target_type="user",
-                target_id=user_id,
-                detail={"username": user.username},
-            )
-
-    # --- 商家管理 ---
-
-    async def get_merchants(
-        self,
-        *,
-        page: int = 1,
-        page_size: int = 20,
-        keyword: str | None = None,
-    ) -> AdminMerchantListOut:
-        """获取商家列表"""
-        async with get_pg() as session:
-            rows, total = await admin_users_repo.get_merchant_list(
-                session, page=page, page_size=page_size, keyword=keyword
-            )
-            items = [
-                AdminMerchantItemOut(
-                    user_id=row["user"].id,
-                    username=row["user"].username,
-                    email=row["user"].email,
-                    is_active=row["user"].is_active,
-                    merchant_id=row["merchant"].id,
-                    shop_name=row["merchant"].shop_name,
-                    contact_phone=row["merchant"].contact_phone,
-                    shop_desc=row["merchant"].shop_desc,
-                    logo_url=row["merchant"].logo_url,
-                    created_at=row["merchant"].created_at,
-                )
-                for row in rows
-            ]
-            return AdminMerchantListOut(
-                items=items, total=total, page=page, page_size=page_size
-            )
-
-    async def get_merchant_detail(self, merchant_id: str) -> AdminMerchantItemOut:
-        """获取商家详情"""
-        async with get_pg() as session:
-            row = await admin_users_repo.get_merchant_detail(session, merchant_id)
-            if not row:
-                raise NotFoundError(MERCHANT_NOT_FOUND)
-            return AdminMerchantItemOut(
-                user_id=row["user"].id,
-                username=row["user"].username,
-                email=row["user"].email,
-                is_active=row["user"].is_active,
-                merchant_id=row["merchant"].id,
-                shop_name=row["merchant"].shop_name,
-                contact_phone=row["merchant"].contact_phone,
-                shop_desc=row["merchant"].shop_desc,
-                logo_url=row["merchant"].logo_url,
-                created_at=row["merchant"].created_at,
-            )
-
-    async def verify_merchant(
-        self, merchant_id: str, is_active: bool, admin_id: str
-    ) -> None:
-        """审核商家（启用/禁用商家账号）"""
-        admin_uuid = uuid.UUID(admin_id)
-        async with get_pg() as session:
-            ok = await admin_users_repo.set_merchant_active(
-                session, merchant_id, is_active
-            )
-            if not ok:
-                raise NotFoundError(MERCHANT_NOT_FOUND)
-            await admin_log_repo.create_log(
-                session,
-                admin_id=admin_uuid,
-                action="verify_merchant",
-                target_type="merchant",
-                target_id=merchant_id,
-                detail={"is_active": is_active},
+                action=action,
+                target_type=target_type,
+                target_id=target_id,
+                detail={"message": "暂无"},
             )
 
     # --- 商品管理 ---

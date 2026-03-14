@@ -88,6 +88,12 @@ Makefile 已封装常用开发命令（见 [Makefile](file:///d:/Codes/graduatio
 - 拉起/关闭依赖：`make docker-up` / `make docker-down`
 - 一键质量检查：`make check`（format + lint + typecheck + test）
 
+### 初始化管理员
+
+```bash
+pdm run python -m scripts.create_admin --username <username> --email <email> --password <password>
+```
+
 ### Celery
 
 ```bash
