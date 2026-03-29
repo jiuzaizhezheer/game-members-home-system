@@ -3,19 +3,21 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, Query, WebSocket, WebSocketDisconnect, status
 
 from app.api.deps import get_current_user_id
-from app.api.role import require_any_role
+from app.api.role import require_member_or_merchant
 from app.common.constants import GET_SUCCESS
+from app.common.enums import RoleEnum
 from app.core.websocket_manager import ws_manager
 from app.schemas.notification import NotificationListOut, UnreadCountOut
 from app.schemas.response import SuccessResponse
 from app.services.notification_service import notification_service
+from app.utils import decode_access_token
 
 router = APIRouter()
 
 
 @router.get(
     "/my",
-    dependencies=[require_any_role],
+    dependencies=[require_member_or_merchant],
     response_model=SuccessResponse[NotificationListOut],
     status_code=status.HTTP_200_OK,
 )
@@ -39,7 +41,7 @@ async def get_my_notifications(
 
 @router.get(
     "/unread-count",
-    dependencies=[require_any_role],
+    dependencies=[require_member_or_merchant],
     response_model=SuccessResponse[UnreadCountOut],
     status_code=status.HTTP_200_OK,
 )
@@ -55,7 +57,7 @@ async def get_unread_count(
 
 @router.post(
     "/{notification_id}/read",
-    dependencies=[require_any_role],
+    dependencies=[require_member_or_merchant],
     response_model=SuccessResponse[bool],
     status_code=status.HTTP_200_OK,
 )
@@ -70,7 +72,7 @@ async def mark_as_read(
 
 @router.post(
     "/read-all",
-    dependencies=[require_any_role],
+    dependencies=[require_member_or_merchant],
     response_model=SuccessResponse[int],
     status_code=status.HTTP_200_OK,
 )
@@ -83,8 +85,29 @@ async def mark_all_as_read(
 
 
 @router.websocket("/ws/{user_id}")
-async def websocket_endpoint(websocket: WebSocket, user_id: str):
+async def websocket_endpoint(
+    websocket: WebSocket, user_id: str, token: str | None = None
+):
     """WebSocket 实时通知长连接"""
+    if not token:
+        await websocket.close(code=1008)
+        return
+
+    try:
+        payload = decode_access_token(token)
+        token_user_id = str(payload.get("sub") or "")
+        role = str(payload.get("role") or "")
+        if (
+            not token_user_id
+            or token_user_id != user_id
+            or role not in {RoleEnum.MEMBER, RoleEnum.MERCHANT}
+        ):
+            await websocket.close(code=1008)
+            return
+    except Exception:
+        await websocket.close(code=1008)
+        return
+
     print(f"WS attempting connect: {user_id}")
     await ws_manager.connect(websocket, user_id)
     print(f"WS connected: {user_id}")

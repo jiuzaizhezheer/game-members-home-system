@@ -6,7 +6,13 @@ from app.common.errors import BusinessError, NotFoundError
 from app.database.pgsql import get_pg
 from app.entity.pgsql import Coupon, UserCoupon
 from app.repo import coupons_repo
-from app.schemas.coupon import CouponCreateIn, CouponOut, CouponUpdateIn, UserCouponOut
+from app.schemas.coupon import (
+    CouponCenterOut,
+    CouponCreateIn,
+    CouponOut,
+    CouponUpdateIn,
+    UserCouponOut,
+)
 
 
 class CouponService:
@@ -22,7 +28,7 @@ class CouponService:
 
     async def list_claimable_coupons(
         self, user_id: uuid.UUID, page: int = 1, page_size: int = 20
-    ) -> tuple[list[CouponOut], int]:
+    ) -> tuple[list[CouponCenterOut], int]:
         """领券中心：获取可领取的优惠券列表"""
         async with get_pg() as session:
             # 仅展示 active 状态且在有效期内的
@@ -30,8 +36,23 @@ class CouponService:
                 session, is_active_only=True, page=page, page_size=page_size
             )
 
-            # TODO: 标记用户是否已领取
-            return [CouponOut.model_validate(item) for item in items], total
+            # 标记用户是否已领取
+            coupon_ids = [item.id for item in items]
+            claimed_ids = await coupons_repo.get_claimed_coupon_ids(
+                session, user_id, coupon_ids
+            )
+
+            out_items = []
+            for item in items:
+                # 转换
+                out = CouponCenterOut.model_validate(item)
+                out.is_claimed = item.id in claimed_ids
+                out.is_fully_issued = (
+                    item.total_quantity > 0 and item.issued_count >= item.total_quantity
+                )
+                out_items.append(out)
+
+            return out_items, total
 
     async def list_merchant_coupons(
         self, merchant_id: uuid.UUID | None, page: int = 1, page_size: int = 20

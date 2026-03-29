@@ -54,6 +54,14 @@ async def force_offline_product(session: AsyncSession, product_id: str) -> None:
         await session.flush()
 
 
+async def force_online_product(session: AsyncSession, product_id: str) -> None:
+    """强制上架商品"""
+    product = await get_product_by_id(session, product_id)
+    if product:
+        product.status = "on"
+        await session.flush()
+
+
 # --- 订单 ---
 
 

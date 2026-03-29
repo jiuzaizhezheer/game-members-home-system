@@ -186,6 +186,23 @@ class AdminService:
                 detail={"product_name": product.name},
             )
 
+    async def force_online_product(self, product_id: str, admin_id: str) -> None:
+        """强制上架商品"""
+        admin_uuid = uuid.UUID(admin_id)
+        async with get_pg() as session:
+            product = await admin_products_repo.get_product_by_id(session, product_id)
+            if not product:
+                raise NotFoundError(PRODUCT_NOT_FOUND)
+            await admin_products_repo.force_online_product(session, product_id)
+            await admin_log_repo.create_log(
+                session,
+                admin_id=admin_uuid,
+                action="force_online_product",
+                target_type="product",
+                target_id=product_id,
+                detail={"product_name": product.name},
+            )
+
     # --- 分类管理 ---
 
     async def get_categories(self) -> list[CategoryOut]:

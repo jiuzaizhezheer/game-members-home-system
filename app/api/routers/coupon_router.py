@@ -7,7 +7,7 @@ from app.api.deps import get_coupon_service, get_current_user_id
 from app.api.role import require_member
 from app.common.constants import GET_SUCCESS
 from app.schemas import SuccessResponse
-from app.schemas.coupon import CouponClaimIn, CouponOut, UserCouponOut
+from app.schemas.coupon import CouponCenterOut, CouponClaimIn, UserCouponOut
 from app.services.coupon_service import CouponService
 
 coupon_router = APIRouter()
@@ -16,7 +16,7 @@ coupon_router = APIRouter()
 @coupon_router.get(
     "/center",
     dependencies=[require_member],
-    response_model=SuccessResponse[list[CouponOut]],
+    response_model=SuccessResponse[list[CouponCenterOut]],
     status_code=status.HTTP_200_OK,
 )
 async def list_claimable_coupons(
@@ -29,7 +29,7 @@ async def list_claimable_coupons(
     items, _ = await coupon_service.list_claimable_coupons(
         uuid.UUID(user_id), page, page_size
     )
-    return SuccessResponse[list[CouponOut]](message=GET_SUCCESS, data=items)
+    return SuccessResponse[list[CouponCenterOut]](message=GET_SUCCESS, data=items)
 
 
 @coupon_router.post(

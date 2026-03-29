@@ -227,3 +227,16 @@ async def atomic_increment_issued_count(
     )
     result = cast(CursorResult, await session.execute(stmt))
     return result.rowcount > 0
+
+
+async def get_claimed_coupon_ids(
+    session: AsyncSession, user_id: uuid.UUID, coupon_ids: list[uuid.UUID]
+) -> set[uuid.UUID]:
+    """批量获取用户已经领取的优惠券ID"""
+    if not coupon_ids:
+        return set()
+    stmt = select(UserCoupon.coupon_id).where(
+        and_(UserCoupon.user_id == user_id, UserCoupon.coupon_id.in_(coupon_ids))
+    )
+    result = await session.execute(stmt)
+    return set(result.scalars().all())

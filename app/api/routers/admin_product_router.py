@@ -67,3 +67,19 @@ async def force_offline_product(
     """管理员强制下架商品"""
     await admin_service.force_offline_product(id, admin_id=admin_id)
     return SuccessResponse[None](message=POST_SUCCESS)
+
+
+@admin_product_router.patch(
+    path="/{id}/online",
+    dependencies=[require_admin],
+    response_model=SuccessResponse[None],
+    status_code=status.HTTP_200_OK,
+)
+async def force_online_product(
+    id: Annotated[str, Path(description="商品ID")],
+    admin_service: Annotated[AdminService, Depends(get_admin_service)],
+    admin_id: Annotated[str, Depends(get_current_user_id)],
+) -> SuccessResponse[None]:
+    """管理员强制上架商品"""
+    await admin_service.force_online_product(id, admin_id=admin_id)
+    return SuccessResponse[None](message=POST_SUCCESS)
