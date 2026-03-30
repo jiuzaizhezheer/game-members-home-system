@@ -1,11 +1,12 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Body, Cookie, Depends, Response, status
+from fastapi import APIRouter, BackgroundTasks, Body, Cookie, Depends, Response, status
 
-from app.api.deps import get_auth_service, get_captcha_service
+from app.api.deps import get_auth_service, get_captcha_service, get_email_service
 from app.common.constants import (
     CAPTCHA_GENERATE_SUCCESS,
-    INVALID_CAPTCHA,
+    INVALID_EMAIL_CAPTCHA,
+    INVALID_IMAGE_CAPTCHA,
     LOGIN_SUCCESS,
     REFRESH_TOKEN_SUCCESS,
     REGISTER_SUCCESS,
@@ -17,9 +18,11 @@ from app.schemas import (
     AuthLoginIn,
     AuthRegisterIn,
     CaptchaOut,
+    EmailCaptchaIn,
+    EmailCaptchaOut,
     SuccessResponse,
 )
-from app.services import AuthService, CaptchaService
+from app.services import AuthService, CaptchaService, EmailService
 from app.utils import RateLimiter, delete_refresh_token
 
 auth_router = APIRouter()
@@ -46,6 +49,42 @@ async def generate_captcha(
 
 
 @auth_router.post(
+    path="/captcha/email",
+    dependencies=[Depends(RateLimiter(counts=10, seconds=60))],
+    response_model=SuccessResponse[EmailCaptchaOut],  # TODO
+    status_code=status.HTTP_200_OK,
+)
+async def generate_email_captcha(
+    payload: Annotated[EmailCaptchaIn, Body(description="接受方邮箱地址")],
+    background_tasks: BackgroundTasks,
+    captcha_service: Annotated[CaptchaService, Depends(get_captcha_service)],
+    email_service: Annotated[EmailService, Depends(get_email_service)],
+) -> SuccessResponse[EmailCaptchaOut]:
+    """向指定邮箱发送验证码路由
+    返回：
+    - id: 验证码唯一标识（注册/登录时附带）
+    """
+    is_valid = await captcha_service.verify_image_captcha(
+        payload.image_captcha_id,
+        payload.image_captcha_code,
+    )
+    if not is_valid:
+        raise ValidationError(detail=INVALID_IMAGE_CAPTCHA)
+
+    captcha_id, code = await captcha_service.create_email_captcha()
+
+    # 不阻塞接口响应，丢到后台进程或线程执行
+    background_tasks.add_task(
+        email_service.send_verification_email, payload.email, code
+    )
+
+    captcha_out = EmailCaptchaOut(id=captcha_id)
+    return SuccessResponse[EmailCaptchaOut](
+        message="验证码已发送至您的邮箱，请查收", data=captcha_out
+    )
+
+
+@auth_router.post(
     path="/register",
     dependencies=[Depends(RateLimiter(counts=99999, seconds=60))],
     response_model=SuccessResponse[None],
@@ -57,12 +96,12 @@ async def register(
     captcha_service: Annotated[CaptchaService, Depends(get_captcha_service)],
 ) -> SuccessResponse[None]:
     """用户注册接口路由"""
-    is_valid = await captcha_service.verify_captcha(
+    is_valid = await captcha_service.verify_email_captcha(
         payload.captcha_id,
         payload.captcha_code,
     )
     if not is_valid:
-        raise ValidationError(detail=INVALID_CAPTCHA)
+        raise ValidationError(detail=INVALID_EMAIL_CAPTCHA)
 
     await auth_service.register(payload)
     return SuccessResponse[None](message=REGISTER_SUCCESS)

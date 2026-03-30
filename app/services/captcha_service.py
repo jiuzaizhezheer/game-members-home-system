@@ -9,7 +9,9 @@ from app.schemas.auth import CaptchaOut
 
 class CaptchaService:
     CAPTCHA_PREFIX = "captcha:"
+    EMAIL_CAPTCHA_PREFIX = "email_captcha:"
     EXPIRE_SECONDS = 60
+    EMAIL_EXPIRE_SECONDS = 300
 
     def _random_code(self, length: int = 6) -> str:
         """生成随机验证码文本（大写字母 + 数字）"""
@@ -60,9 +62,26 @@ class CaptchaService:
 
         return CaptchaOut(id=captcha_id, image=image_data)
 
-    async def verify_captcha(self, captcha_id: str, code: str) -> bool:
+    async def create_email_captcha(self) -> tuple[str, str]:
         """
-        验证验证码
+        为邮件专门生成验证码，并关联 UUID
+        Returns:
+            (captcha_id, code)
+        """
+        # 生成验证码（复用通用的字母+数字逻辑）
+        code = self._random_code()
+        captcha_id = str(uuid.uuid4())
+
+        key = f"{self.EMAIL_CAPTCHA_PREFIX}{captcha_id}"
+        # 邮件验证码设为 5 分钟 (300 秒) 有效
+        async with get_redis() as redis:
+            await redis.setex(key, self.EMAIL_EXPIRE_SECONDS, code.lower())
+
+        return captcha_id, code
+
+    async def verify_image_captcha(self, captcha_id: str, code: str) -> bool:
+        """
+        验证图形验证码
         验证成功后会删除 Redis 中的记录（防止重放）
         """
         if not captcha_id or not code:
@@ -71,12 +90,30 @@ class CaptchaService:
         key = f"{self.CAPTCHA_PREFIX}{captcha_id}"
         async with get_redis() as redis:
             stored_code = await redis.get(key)
-
             if not stored_code:
                 return False
-
             if stored_code == code.strip().lower():
                 await redis.delete(key)
                 return True
+            return False
 
+    async def verify_captcha(self, captcha_id: str, code: str) -> bool:
+        return await self.verify_image_captcha(captcha_id, code)
+
+    async def verify_email_captcha(self, captcha_id: str, code: str) -> bool:
+        """
+        验证邮件验证码
+        验证成功后会删除 Redis 中的记录（防止重放）
+        """
+        if not captcha_id or not code:
+            return False
+
+        key = f"{self.EMAIL_CAPTCHA_PREFIX}{captcha_id}"
+        async with get_redis() as redis:
+            stored_code = await redis.get(key)
+            if not stored_code:
+                return False
+            if stored_code == code.strip().lower():
+                await redis.delete(key)
+                return True
             return False
