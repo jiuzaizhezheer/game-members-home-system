@@ -79,9 +79,9 @@ class CaptchaService:
 
         return captcha_id, code
 
-    async def verify_captcha(self, captcha_id: str, code: str) -> bool:
+    async def verify_image_captcha(self, captcha_id: str, code: str) -> bool:
         """
-        验证验证码
+        验证图形验证码
         验证成功后会删除 Redis 中的记录（防止重放）
         """
         if not captcha_id or not code:
@@ -90,12 +90,27 @@ class CaptchaService:
         key = f"{self.CAPTCHA_PREFIX}{captcha_id}"
         async with get_redis() as redis:
             stored_code = await redis.get(key)
-
             if not stored_code:
                 return False
-
             if stored_code == code.strip().lower():
                 await redis.delete(key)
                 return True
+            return False
 
+    async def verify_email_captcha(self, captcha_id: str, code: str) -> bool:
+        """
+        验证邮件验证码
+        验证成功后会删除 Redis 中的记录（防止重放）
+        """
+        if not captcha_id or not code:
+            return False
+
+        key = f"{self.EMAIL_CAPTCHA_PREFIX}{captcha_id}"
+        async with get_redis() as redis:
+            stored_code = await redis.get(key)
+            if not stored_code:
+                return False
+            if stored_code == code.strip().lower():
+                await redis.delete(key)
+                return True
             return False

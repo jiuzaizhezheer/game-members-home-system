@@ -5,7 +5,7 @@ from fastapi import APIRouter, Body, Cookie, Depends, Response, status, Backgrou
 from app.api.deps import get_auth_service, get_captcha_service, get_email_service
 from app.common.constants import (
     CAPTCHA_GENERATE_SUCCESS,
-    INVALID_CAPTCHA,
+    INVALID_IMAGE_CAPTCHA,
     LOGIN_SUCCESS,
     REFRESH_TOKEN_SUCCESS,
     REGISTER_SUCCESS,
@@ -63,6 +63,13 @@ async def generate_email_captcha(
     返回：
     - id: 验证码唯一标识（注册/登录时附带）
     """
+    is_valid = await captcha_service.verify_image_captcha(
+        payload.image_captcha_id,
+        payload.image_captcha_code,
+    )
+    if not is_valid:
+        raise ValidationError(detail=INVALID_IMAGE_CAPTCHA)
+
     captcha_id, code = await captcha_service.create_email_captcha()
     
     # 不阻塞接口响应，丢到后台进程或线程执行
@@ -84,12 +91,12 @@ async def register(
     captcha_service: Annotated[CaptchaService, Depends(get_captcha_service)],
 ) -> SuccessResponse[None]:
     """用户注册接口路由"""
-    is_valid = await captcha_service.verify_captcha(
+    is_valid = await captcha_service.verify_email_captcha(
         payload.captcha_id,
         payload.captcha_code,
     )
     if not is_valid:
-        raise ValidationError(detail=INVALID_CAPTCHA)
+        raise ValidationError(detail=INVALID_EMAIL_CAPTCHA)
 
     await auth_service.register(payload)
     return SuccessResponse[None](message=REGISTER_SUCCESS)
