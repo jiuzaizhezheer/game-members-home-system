@@ -97,6 +97,9 @@ class CaptchaService:
                 return True
             return False
 
+    async def verify_captcha(self, captcha_id: str, code: str) -> bool:
+        return await self.verify_image_captcha(captcha_id, code)
+
     async def verify_email_captcha(self, captcha_id: str, code: str) -> bool:
         """
         验证邮件验证码

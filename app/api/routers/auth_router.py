@@ -1,10 +1,11 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Body, Cookie, Depends, Response, status, BackgroundTasks
+from fastapi import APIRouter, BackgroundTasks, Body, Cookie, Depends, Response, status
 
 from app.api.deps import get_auth_service, get_captcha_service, get_email_service
 from app.common.constants import (
     CAPTCHA_GENERATE_SUCCESS,
+    INVALID_EMAIL_CAPTCHA,
     INVALID_IMAGE_CAPTCHA,
     LOGIN_SUCCESS,
     REFRESH_TOKEN_SUCCESS,
@@ -17,9 +18,9 @@ from app.schemas import (
     AuthLoginIn,
     AuthRegisterIn,
     CaptchaOut,
-    SuccessResponse,
     EmailCaptchaIn,
     EmailCaptchaOut,
+    SuccessResponse,
 )
 from app.services import AuthService, CaptchaService, EmailService
 from app.utils import RateLimiter, delete_refresh_token
@@ -50,7 +51,7 @@ async def generate_captcha(
 @auth_router.post(
     path="/captcha/email",
     dependencies=[Depends(RateLimiter(counts=10, seconds=60))],
-    response_model=SuccessResponse[EmailCaptchaOut],# TODO
+    response_model=SuccessResponse[EmailCaptchaOut],  # TODO
     status_code=status.HTTP_200_OK,
 )
 async def generate_email_captcha(
@@ -71,12 +72,16 @@ async def generate_email_captcha(
         raise ValidationError(detail=INVALID_IMAGE_CAPTCHA)
 
     captcha_id, code = await captcha_service.create_email_captcha()
-    
+
     # 不阻塞接口响应，丢到后台进程或线程执行
-    background_tasks.add_task(email_service.send_verification_email, payload.email, code)
-    
+    background_tasks.add_task(
+        email_service.send_verification_email, payload.email, code
+    )
+
     captcha_out = EmailCaptchaOut(id=captcha_id)
-    return SuccessResponse[EmailCaptchaOut](message="验证码已发送至您的邮箱，请查收", data=captcha_out)
+    return SuccessResponse[EmailCaptchaOut](
+        message="验证码已发送至您的邮箱，请查收", data=captcha_out
+    )
 
 
 @auth_router.post(

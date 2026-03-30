@@ -82,6 +82,8 @@ async def test_member_points_full_workflow(cleanup):
         async with get_redis() as redis:
             captcha_code = await redis.get(f"captcha:{captcha_id}")
             assert captcha_code is not None
+            # 为了通过注册时的邮件验证码校验，我们需要在 Redis 中手动存一份 email_captcha 前缀的记录
+            await redis.setex(f"email_captcha:{captcha_id}", 300, captcha_code)
 
         # --- 1. 用户注册 ---
         register_payload = {

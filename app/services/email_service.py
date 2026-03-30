@@ -1,16 +1,17 @@
 import logging
+
 from fastapi_mail import ConnectionConfig, FastMail, MessageSchema, MessageType
-from pydantic import EmailStr, SecretStr
+from pydantic import NameEmail, SecretStr
 
 from app.core.config import (
-    MAIL_USERNAME,
-    MAIL_PASSWORD,
     MAIL_FROM,
+    MAIL_FROM_NAME,
+    MAIL_PASSWORD,
     MAIL_PORT,
     MAIL_SERVER,
-    MAIL_FROM_NAME,
-    MAIL_STARTTLS,
     MAIL_SSL_TLS,
+    MAIL_STARTTLS,
+    MAIL_USERNAME,
     USE_CREDENTIALS,
     VALIDATE_CERTS,
 )
@@ -48,7 +49,7 @@ class EmailService:
 
             message = MessageSchema(
                 subject="【游戏玩家中心】登录/注册 验证码",
-                recipients=[EmailStr(email)],
+                recipients=[NameEmail(name=email, email=email)],
                 body=html_content,
                 subtype=MessageType.html,
             )
