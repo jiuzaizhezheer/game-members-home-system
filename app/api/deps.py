@@ -22,6 +22,7 @@ from app.services import (
     PromotionService,
     ReportService,
     UserService,
+    EmailService,
 )
 from app.services.order_refund_service import OrderRefundService
 from app.utils import decode_access_token
@@ -46,6 +47,7 @@ _order_refund_service = OrderRefundService()
 _banner_service = BannerService()
 _logistics_service = LogisticsService()
 _coupon_service = CouponService()
+_email_service = EmailService()
 
 
 def get_admin_service() -> AdminService:
@@ -122,6 +124,10 @@ def get_logistics_service() -> LogisticsService:
 
 def get_coupon_service() -> CouponService:
     return _coupon_service
+
+
+def get_email_service() -> EmailService:
+    return _email_service
 
 
 def get_current_user_id(request: Request) -> str:

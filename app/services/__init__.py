@@ -17,6 +17,7 @@ from .product_service import ProductService
 from .promotion_service import PromotionService
 from .report_service import ReportService
 from .user_service import UserService
+from .email_service import EmailService
 
 __all__ = [
     "AdminService",
@@ -38,4 +39,5 @@ __all__ = [
     "ReportService",
     "BannerService",
     "LogisticsService",
+    "EmailService",
 ]

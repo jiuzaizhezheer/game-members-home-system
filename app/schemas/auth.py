@@ -45,3 +45,11 @@ class TokenOut(BaseModel):
 
 class AccessTokenOut(BaseModel):
     access_token: str = Field(description="访问令牌")
+
+
+class EmailCaptchaIn(BaseModel):
+    email: EmailStr = Field(description="接收验证码的邮箱地址")
+
+
+class EmailCaptchaOut(BaseModel):
+    id: str = Field(description="验证码唯一标识")

@@ -9,6 +9,8 @@ from .auth import (
     AuthRegisterIn,
     CaptchaOut,
     TokenOut,
+    EmailCaptchaIn,
+    EmailCaptchaOut,
 )
 from .cart import (
     CartCreateIn,
@@ -105,4 +107,6 @@ __all__ = [
     "UserProfileUpdateIn",
     "PointLogListOut",
     "PointLogOut",
+    "EmailCaptchaIn",
+    "EmailCaptchaOut",
 ]
