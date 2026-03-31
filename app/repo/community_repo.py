@@ -10,8 +10,8 @@ from sqlalchemy.engine import CursorResult
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.entity.mongodb import Like as MongoLike
 from app.entity.mongodb.comments import Comment
-from app.entity.mongodb.likes import Like as MongoLike
 from app.entity.pgsql import (
     CommunityGroup,
     GroupMember,
