@@ -230,9 +230,9 @@ class OrderService:
                 cart.is_checked_out = True
                 await session.flush()
 
-                await cancel_unpaid_order_task.kiq(
+                await cancel_unpaid_order_task.kiq(  # type: ignore[attr-defined]
                     str(new_order.id), user_id
-                ).schedule_by(countdown=900)  # type: ignore[attr-defined]
+                ).schedule_by(countdown=900)
 
                 from app.services.notification_service import notification_service
 
@@ -437,9 +437,9 @@ class OrderService:
                 await orders_repo.add_items(session, [order_item])
                 await session.flush()
 
-                await cancel_unpaid_order_task.kiq(
+                await cancel_unpaid_order_task.kiq(  # type: ignore[attr-defined]
                     str(new_order.id), user_id
-                ).schedule_by(countdown=900)  # type: ignore[attr-defined]
+                ).schedule_by(countdown=900)
 
                 from app.services.notification_service import notification_service
 
