@@ -10,7 +10,6 @@ pg_engine = create_async_engine(DATABASE_URL)
 
 # 新增 products 表中 image_url 字段
 async def table_structure_patch_1():
-
     async with pg_engine.begin() as conn:
         print("Adding image_url column to products table...")
         await conn.execute(
@@ -25,7 +24,6 @@ async def table_structure_patch_1():
 
 # 修改 merchants 表中 contact_phone 字段长度为 11
 async def table_structure_patch_2():
-
     async with pg_engine.begin() as conn:
         print("Modifying contact_phone length in merchants table...")
         await conn.execute(
@@ -40,7 +38,6 @@ async def table_structure_patch_2():
 
 # 删除 messages 和 comments 表（迁移至 MongoDB）
 async def table_structure_patch_3():
-
     async with pg_engine.begin() as conn:
         print("Dropping messages and comments tables...")
         await conn.execute(text("DROP TABLE IF EXISTS messages CASCADE;"))
@@ -52,7 +49,6 @@ async def table_structure_patch_3():
 
 # 购物车支持多购物车（移除唯一约束，新增名称和结算状态）
 async def table_structure_patch_4():
-
     async with pg_engine.begin() as conn:
         print("Refactoring carts table for multi-cart support...")
         # 1. 移除 user_id 的唯一约束 (PostgreSQL 默认命名通常为 carts_user_id_key)
@@ -75,7 +71,6 @@ async def table_structure_patch_4():
 
 # 商家表新增 logo_url 字段
 async def table_structure_patch_5():
-
     async with pg_engine.begin() as conn:
         print("Adding logo_url column to merchants table...")
         await conn.execute(
@@ -88,7 +83,6 @@ async def table_structure_patch_5():
 
 # 用户表新增 avatar_url 字段
 async def table_structure_patch_6():
-
     async with pg_engine.begin() as conn:
         print("Adding avatar_url column to users table...")
         await conn.execute(

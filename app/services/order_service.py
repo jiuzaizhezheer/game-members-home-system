@@ -151,13 +151,14 @@ class OrderService:
                         item.product.merchant_id for item in order_items_to_create
                     }
 
-                    user_coupon, coupon = (
-                        await coupon_service.validate_coupon_for_order(
-                            uuid.UUID(user_id),
-                            user_coupon_id,
-                            total_amount,
-                            merchant_ids,
-                        )
+                    (
+                        user_coupon,
+                        coupon,
+                    ) = await coupon_service.validate_coupon_for_order(
+                        uuid.UUID(user_id),
+                        user_coupon_id,
+                        total_amount,
+                        merchant_ids,
                     )
 
                     if coupon.discount_type == "percent":
@@ -228,11 +229,11 @@ class OrderService:
                 cart.is_checked_out = True
                 await session.flush()
 
-                from app.tasks.celery_worker import cancel_unpaid_order_task
+                from app.tasks.tasks import cancel_unpaid_order_task
 
-                cancel_unpaid_order_task.apply_async(
-                    args=[str(new_order.id), user_id], countdown=900
-                )
+                await cancel_unpaid_order_task.kiq(
+                    str(new_order.id), user_id
+                ).schedule_by(countdown=900)
 
                 from app.services.notification_service import notification_service
 
@@ -356,13 +357,14 @@ class OrderService:
 
                     coupon_service = CouponService()
 
-                    user_coupon, coupon = (
-                        await coupon_service.validate_coupon_for_order(
-                            uuid.UUID(user_id),
-                            user_coupon_id,
-                            total_amount,
-                            {product.merchant_id},
-                        )
+                    (
+                        user_coupon,
+                        coupon,
+                    ) = await coupon_service.validate_coupon_for_order(
+                        uuid.UUID(user_id),
+                        user_coupon_id,
+                        total_amount,
+                        {product.merchant_id},
                     )
 
                     if coupon.discount_type == "percent":
@@ -436,11 +438,11 @@ class OrderService:
                 await orders_repo.add_items(session, [order_item])
                 await session.flush()
 
-                from app.tasks.celery_worker import cancel_unpaid_order_task
+                from app.tasks.tasks import cancel_unpaid_order_task
 
-                cancel_unpaid_order_task.apply_async(
-                    args=[str(new_order.id), user_id], countdown=900
-                )
+                await cancel_unpaid_order_task.kiq(
+                    str(new_order.id), user_id
+                ).schedule_by(countdown=900)
 
                 from app.services.notification_service import notification_service
 

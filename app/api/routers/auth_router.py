@@ -1,8 +1,8 @@
 from typing import Annotated
 
-from fastapi import APIRouter, BackgroundTasks, Body, Cookie, Depends, Response, status
+from fastapi import APIRouter, Body, Cookie, Depends, Response, status
 
-from app.api.deps import get_auth_service, get_captcha_service, get_email_service
+from app.api.deps import get_auth_service, get_captcha_service
 from app.common.constants import (
     CAPTCHA_GENERATE_SUCCESS,
     INVALID_EMAIL_CAPTCHA,
@@ -22,7 +22,8 @@ from app.schemas import (
     EmailCaptchaOut,
     SuccessResponse,
 )
-from app.services import AuthService, CaptchaService, EmailService
+from app.tasks.tasks import send_verification_email_task
+from app.services import AuthService, CaptchaService
 from app.utils import RateLimiter, delete_refresh_token
 
 auth_router = APIRouter()
@@ -31,7 +32,7 @@ COOKIE_PATH = "/api/auths"
 
 
 @auth_router.get(
-    path="/captcha",  # TODO: 后续可能修改为向邮箱发送验证码
+    path="/captcha",
     dependencies=[Depends(RateLimiter(counts=9999, seconds=30))],
     response_model=SuccessResponse[CaptchaOut],
     status_code=status.HTTP_200_OK,
@@ -55,10 +56,8 @@ async def generate_captcha(
     status_code=status.HTTP_200_OK,
 )
 async def generate_email_captcha(
-    payload: Annotated[EmailCaptchaIn, Body(description="接受方邮箱地址")],
-    background_tasks: BackgroundTasks,
+    payload: EmailCaptchaIn,
     captcha_service: Annotated[CaptchaService, Depends(get_captcha_service)],
-    email_service: Annotated[EmailService, Depends(get_email_service)],
 ) -> SuccessResponse[EmailCaptchaOut]:
     """向指定邮箱发送验证码路由
     返回：
@@ -73,10 +72,9 @@ async def generate_email_captcha(
 
     captcha_id, code = await captcha_service.create_email_captcha()
 
-    # 不阻塞接口响应，丢到后台进程或线程执行
-    background_tasks.add_task(
-        email_service.send_verification_email, payload.email, code
-    )
+    # 将发信任务交给 Taskiq 异步 Worker 处理，更加可靠且支持重试
+
+    await send_verification_email_task.kiq(payload.email, code)
 
     captcha_out = EmailCaptchaOut(id=captcha_id)
     return SuccessResponse[EmailCaptchaOut](

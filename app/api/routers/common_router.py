@@ -23,7 +23,7 @@ UPLOAD_DIR = os.path.join(os.getcwd(), "static", "uploads")
     tags=["upload"],
 )
 async def upload_file(
-    file: Annotated[UploadFile, File(description="上传的文件")]
+    file: Annotated[UploadFile, File(description="上传的文件")],
 ) -> SuccessResponse[FileUploadOut]:
     """通用文件上传接口"""
     # 确保文件夹存在

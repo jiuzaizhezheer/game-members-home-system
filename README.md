@@ -6,7 +6,7 @@
 
 - Web：FastAPI + Uvicorn
 - 数据：PostgreSQL（业务主库）/ MongoDB（部分互动与内容数据）/ Redis（缓存、锁、计数等）
-- 异步任务：Celery + RabbitMQ
+- 异步任务：Taskiq + RabbitMQ（原 Celery 已迁移，详见下文）
 - 通知：WebSocket
 - 依赖管理：PDM（Python >= 3.12）
 
@@ -94,7 +94,17 @@ Makefile 已封装常用开发命令（见 [Makefile](file:///d:/Codes/graduatio
 pdm run python -m scripts.create_admin --username <username> --email <email> --password <password>
 ```
 
-### Celery
+### Taskiq (异步/定时任务) - 推荐方案
+
+```bash
+# 启动 Worker（处理异步任务与延时任务）
+pdm run taskiq worker app.tasks.tasks:broker --log-level INFO --workers 2
+
+# 启动 Scheduler（处理周期性定时任务）
+pdm run taskiq scheduler app.tasks.tasks:broker --log-level INFO
+```
+
+### Celery (旧方案，并行保留中)
 
 ```bash
 pdm run celery -A app.tasks.celery_worker worker --loglevel=info -P solo
