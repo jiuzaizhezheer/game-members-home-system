@@ -1,12 +1,12 @@
 # Game Members Home System
 
-基于 FastAPI 的「游戏会员之家」后端服务，提供业务 API、通知推送、消息与订单等能力。项目采用清晰的分层组织方式（路由 / schema / service / repo / entity / 数据库基础设施），并配套 Celery 进行异步/定时任务处理。
+基于 FastAPI 的「游戏会员之家」后端服务，提供业务 API、通知推送、消息与订单等能力。项目采用清晰的分层组织方式（路由 / schema / service / repo / entity / 数据库基础设施），并配套 Taskiq 进行异步/定时任务处理。
 
 ## 技术栈
 
 - Web：FastAPI + Uvicorn
 - 数据：PostgreSQL（业务主库）/ MongoDB（部分互动与内容数据）/ Redis（缓存、锁、计数等）
-- 异步任务：Taskiq + RabbitMQ（原 Celery 已迁移，详见下文）
+- 异步任务：Taskiq + RabbitMQ
 - 通知：WebSocket
 - 依赖管理：PDM（Python >= 3.12）
 
@@ -104,13 +104,6 @@ pdm run taskiq worker app.tasks.tasks:broker --log-level INFO --workers 2
 pdm run taskiq scheduler app.tasks.tasks:broker --log-level INFO
 ```
 
-### Celery (旧方案，并行保留中)
-
-```bash
-pdm run celery -A app.tasks.celery_worker worker --loglevel=info -P solo
-pdm run celery -A app.tasks.celery_worker beat --loglevel=info
-```
-
 ### 数据库补丁脚本
 
 ```bash
@@ -134,7 +127,7 @@ game-members-home-system/
 │   ├── database/                   # pgsql/mongodb/redis 基础设施与初始化脚本
 │   ├── core/                       # 配置、生命周期、WebSocket 管理等
 │   ├── middleware/                 # 全局异常、安全、日志等中间件能力
-│   ├── tasks/                      # Celery worker/beat
+│   ├── tasks/                      # Taskiq worker/scheduler
 │   └── utils/                      # 通用工具
 ├── scripts/                        # 运维/初始化脚本
 ├── docker-compose.yml              # 本地依赖编排

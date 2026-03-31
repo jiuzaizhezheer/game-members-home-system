@@ -24,7 +24,6 @@ dependencies = [
     "greenlet>=3.3.0",
     "beanie>=2.0.0",
     "motor>=3.7.1",
-    "celery>=5.6.2",
     "websockets>=16.0",
     "fastapi-mail>=1.6.2",
     "taskiq>=0.12.1",
