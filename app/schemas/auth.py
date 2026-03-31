@@ -49,8 +49,12 @@ class AccessTokenOut(BaseModel):
 
 class EmailCaptchaIn(BaseModel):
     email: EmailStr = Field(description="接收验证码的邮箱地址")
-    image_captcha_id: str = Field(min_length=36, max_length=36, description="前置图片验证码ID")
-    image_captcha_code: str = Field(min_length=6, max_length=6, description="前置图片验证码文本")
+    image_captcha_id: str = Field(
+        min_length=36, max_length=36, description="前置图片验证码ID"
+    )
+    image_captcha_code: str = Field(
+        min_length=6, max_length=6, description="前置图片验证码文本"
+    )
 
 
 class EmailCaptchaOut(BaseModel):

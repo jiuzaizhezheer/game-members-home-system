@@ -18,9 +18,7 @@ POSTGRES_DB: str = os.getenv("POSTGRES_DB", "game_member_home")
 POSTGRES_HOST: str = os.getenv("POSTGRES_HOST", "127.0.0.1")
 POSTGRES_PORT: int = int(os.getenv("POSTGRES_PORT", 5432))
 
-DATABASE_URL: str = (
-    f"postgresql+asyncpg://{POSTGRES_USER}:{POSTGRES_PASSWORD}@{POSTGRES_HOST}:{POSTGRES_PORT}/{POSTGRES_DB}"
-)
+DATABASE_URL: str = f"postgresql+asyncpg://{POSTGRES_USER}:{POSTGRES_PASSWORD}@{POSTGRES_HOST}:{POSTGRES_PORT}/{POSTGRES_DB}"
 
 # MongoDB
 MONGO_ROOT_USER: str = os.getenv("MONGO_ROOT_USER", "admin")
@@ -29,9 +27,7 @@ MONGO_DB: str = os.getenv("MONGO_DB", "game_member_home")
 MONGO_HOST: str = os.getenv("MONGO_HOST", "127.0.0.1")
 MONGO_PORT: str = os.getenv("MONGO_PORT", "27017")
 
-MONGO_DATABASE_URL: str = (
-    f"mongodb://{MONGO_ROOT_USER}:{MONGO_ROOT_PASSWORD}@{MONGO_HOST}:{MONGO_PORT}?authSource=admin"
-)
+MONGO_DATABASE_URL: str = f"mongodb://{MONGO_ROOT_USER}:{MONGO_ROOT_PASSWORD}@{MONGO_HOST}:{MONGO_PORT}?authSource=admin"
 
 # Redis
 REDIS_HOST: str = os.getenv("REDIS_HOST", "127.0.0.1")
@@ -61,13 +57,23 @@ REFRESH_TOKEN_EXPIRE_DAYS: int = int(
 )  # 7 days
 
 # Mail Configuration
-MAIL_USERNAME: str = os.getenv("MAIL_USERNAME", "your_account@qq.com")# 发件人账号
-MAIL_PASSWORD: str = os.getenv("MAIL_PASSWORD", "your_smtp_auth_code")# SMTP授权码
-MAIL_FROM: str = os.getenv("MAIL_FROM", "your_account@qq.com")# 发件人地址（通常和发件人账号一致）
-MAIL_PORT: int = int(os.getenv("MAIL_PORT", 465))# SMTP端口
-MAIL_SERVER: str = os.getenv("MAIL_SERVER", "smtp.qq.com")# SMTP服务器
-MAIL_FROM_NAME: str = os.getenv("MAIL_FROM_NAME", "Game Members Home")# 发件人名称
-MAIL_STARTTLS: bool = os.getenv("MAIL_STARTTLS", "false").lower() == "true"# 是否使用STARTTLS
-MAIL_SSL_TLS: bool = os.getenv("MAIL_SSL_TLS", "true").lower() == "true"# 是否使用SSL/TLS
-USE_CREDENTIALS: bool = os.getenv("USE_CREDENTIALS", "true").lower() == "true"# 是否使用凭据
-VALIDATE_CERTS: bool = os.getenv("VALIDATE_CERTS", "true").lower() == "true"# 是否验证证书
+MAIL_USERNAME: str = os.getenv("MAIL_USERNAME", "your_account@qq.com")  # 发件人账号
+MAIL_PASSWORD: str = os.getenv("MAIL_PASSWORD", "your_smtp_auth_code")  # SMTP授权码
+MAIL_FROM: str = os.getenv(
+    "MAIL_FROM", "your_account@qq.com"
+)  # 发件人地址（通常和发件人账号一致）
+MAIL_PORT: int = int(os.getenv("MAIL_PORT", 465))  # SMTP端口
+MAIL_SERVER: str = os.getenv("MAIL_SERVER", "smtp.qq.com")  # SMTP服务器
+MAIL_FROM_NAME: str = os.getenv("MAIL_FROM_NAME", "Game Members Home")  # 发件人名称
+MAIL_STARTTLS: bool = (
+    os.getenv("MAIL_STARTTLS", "false").lower() == "true"
+)  # 是否使用STARTTLS
+MAIL_SSL_TLS: bool = (
+    os.getenv("MAIL_SSL_TLS", "true").lower() == "true"
+)  # 是否使用SSL/TLS
+USE_CREDENTIALS: bool = (
+    os.getenv("USE_CREDENTIALS", "true").lower() == "true"
+)  # 是否使用凭据
+VALIDATE_CERTS: bool = (
+    os.getenv("VALIDATE_CERTS", "true").lower() == "true"
+)  # 是否验证证书

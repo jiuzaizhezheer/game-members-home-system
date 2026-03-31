@@ -8,9 +8,9 @@ from .auth import (
     AuthLoginIn,
     AuthRegisterIn,
     CaptchaOut,
-    TokenOut,
     EmailCaptchaIn,
     EmailCaptchaOut,
+    TokenOut,
 )
 from .cart import (
     CartCreateIn,

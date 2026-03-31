@@ -7,6 +7,7 @@ from .cart_service import CartService
 from .category_service import CategoryService
 from .community_service import CommunityService
 from .coupon_service import CouponService
+from .email_service import EmailService
 from .favorite_service import FavoriteService
 from .logistics_service import LogisticsService
 from .merchant_service import MerchantService
@@ -17,7 +18,6 @@ from .product_service import ProductService
 from .promotion_service import PromotionService
 from .report_service import ReportService
 from .user_service import UserService
-from .email_service import EmailService
 
 __all__ = [
     "AdminService",

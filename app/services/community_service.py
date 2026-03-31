@@ -30,7 +30,6 @@ from app.utils import check_operation_lock
 
 
 class CommunityService:
-
     # --- Groups ---
 
     async def create_group(

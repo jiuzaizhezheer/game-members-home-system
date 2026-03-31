@@ -57,7 +57,13 @@ check: format lint typecheck test ## Run all checks
 # 运行
 # ========================
 run: ## Run development server
-	$(PYTHON) uvicorn $(APP_MODULE) --reload
+	$(PYTHON) uvicorn $(APP_MODULE) --host 0.0.0.0 --port 8000 --reload
+
+worker: ## Run Taskiq worker
+	$(PYTHON) taskiq worker app.tasks.tasks:broker --log-level INFO
+
+scheduler: ## Run Taskiq scheduler
+	$(PYTHON) taskiq scheduler app.tasks.tasks:broker --log-level INFO
 
 # ========================
 # Docker

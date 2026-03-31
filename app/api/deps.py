@@ -13,6 +13,7 @@ from app.services import (
     CategoryService,
     CommunityService,
     CouponService,
+    EmailService,
     FavoriteService,
     LogisticsService,
     MerchantService,
@@ -22,7 +23,6 @@ from app.services import (
     PromotionService,
     ReportService,
     UserService,
-    EmailService,
 )
 from app.services.order_refund_service import OrderRefundService
 from app.utils import decode_access_token
