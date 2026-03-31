@@ -1,19 +1,16 @@
 import logging
 
 from app.tasks.broker import broker
-from app.api.deps import get_email_service, get_order_service
 
 logger = logging.getLogger(__name__)
 
 
-@broker.task(
-    task_name="check_order_timeout",
-    schedule=[{"cron": "* * * * *"}]
-)
+@broker.task(task_name="check_order_timeout", schedule=[{"cron": "* * * * *"}])
 async def check_order_timeout():
     """
     定期检查并自动确认收货
     """
+    from app.api.deps import get_order_service
 
     service = get_order_service()
     try:
@@ -36,6 +33,7 @@ async def cancel_unpaid_order_task(order_id: str, user_id: str):
     """
     超时自动取消未支付订单
     """
+    from app.api.deps import get_order_service
 
     service = get_order_service()
     try:
@@ -54,6 +52,7 @@ async def send_verification_email_task(email: str, code: str):
     """
     发送注册验证码邮件
     """
+    from app.api.deps import get_email_service
 
     service = get_email_service()
 

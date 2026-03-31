@@ -24,6 +24,7 @@ from app.schemas.order import (
     OrderOut,
     OrderShipIn,
 )
+from app.tasks.tasks import cancel_unpaid_order_task
 from app.utils import check_operation_lock, generate_order_no
 
 
@@ -229,11 +230,9 @@ class OrderService:
                 cart.is_checked_out = True
                 await session.flush()
 
-                from app.tasks.tasks import cancel_unpaid_order_task
-
                 await cancel_unpaid_order_task.kiq(
                     str(new_order.id), user_id
-                ).schedule_by(countdown=900)
+                ).schedule_by(countdown=900)  # type: ignore[attr-defined]
 
                 from app.services.notification_service import notification_service
 
@@ -438,11 +437,9 @@ class OrderService:
                 await orders_repo.add_items(session, [order_item])
                 await session.flush()
 
-                from app.tasks.tasks import cancel_unpaid_order_task
-
                 await cancel_unpaid_order_task.kiq(
                     str(new_order.id), user_id
-                ).schedule_by(countdown=900)
+                ).schedule_by(countdown=900)  # type: ignore[attr-defined]
 
                 from app.services.notification_service import notification_service
 

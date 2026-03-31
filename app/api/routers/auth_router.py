@@ -22,8 +22,8 @@ from app.schemas import (
     EmailCaptchaOut,
     SuccessResponse,
 )
-from app.tasks.tasks import send_verification_email_task
 from app.services import AuthService, CaptchaService
+from app.tasks.tasks import send_verification_email_task
 from app.utils import RateLimiter, delete_refresh_token
 
 auth_router = APIRouter()
