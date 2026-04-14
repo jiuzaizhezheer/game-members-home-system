@@ -24,7 +24,6 @@ from app.schemas.order import (
     OrderOut,
     OrderShipIn,
 )
-from app.tasks.tasks import cancel_unpaid_order_task
 from app.utils import check_operation_lock, generate_order_no
 
 
@@ -230,10 +229,6 @@ class OrderService:
                 cart.is_checked_out = True
                 await session.flush()
 
-                await cancel_unpaid_order_task.kiq(  # type: ignore[attr-defined]
-                    str(new_order.id), user_id
-                ).schedule_by(countdown=900)
-
                 from app.services.notification_service import notification_service
 
                 background_tasks.add_task(
@@ -436,10 +431,6 @@ class OrderService:
                 )
                 await orders_repo.add_items(session, [order_item])
                 await session.flush()
-
-                await cancel_unpaid_order_task.kiq(  # type: ignore[attr-defined]
-                    str(new_order.id), user_id
-                ).schedule_by(countdown=900)
 
                 from app.services.notification_service import notification_service
 
@@ -812,5 +803,33 @@ class OrderService:
             # 提交事务
             if count > 0:
                 await session.commit()
+
+            return count
+
+    async def auto_cancel_expired_orders(self, minutes: int = 15) -> int:
+        """自动取消超过指定分钟数仍未支付的订单"""
+        async with get_pg() as session:
+            expiration_time = datetime.now(UTC) - timedelta(minutes=minutes)
+            orders = await orders_repo.get_expired_pending_orders(
+                session, expiration_time
+            )
+
+            count = 0
+            for order in orders:
+                # 归还库存
+                items = await orders_repo.get_items_by_order_id(session, order.id)
+                for item in items:
+                    await products_repo.recover_stock(
+                        session, item.product_id, item.quantity
+                    )
+
+                # 归还优惠券
+                if order.user_coupon_id:
+                    from app.repo import coupons_repo
+
+                    await coupons_repo.return_user_coupon(session, order.user_coupon_id)
+
+                order.status = "cancelled"
+                count += 1
 
             return count

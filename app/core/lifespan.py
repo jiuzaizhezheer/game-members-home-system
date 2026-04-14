@@ -8,6 +8,7 @@ from sqlalchemy import text
 from app.database.mongodb import init_mongodb, mongodb_client
 from app.database.pgsql import pg_engine
 from app.database.redis import get_redis, redis_pool
+from app.tasks.broker import broker
 
 
 @asynccontextmanager
@@ -25,7 +26,9 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         # 初始化Redis
         async with get_redis() as redis:
             await redis.ping()  # type: ignore
-        logger.info("已开启Redis连接")
+        # 初始化Taskiq Broker
+        await broker.startup()
+        logger.info("已开启Taskiq Broker")
         yield
     finally:
         # 关闭pgsql连接
@@ -37,3 +40,6 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         # 关闭Redis连接
         await redis_pool.disconnect()
         logger.info("已关闭Redis连接")
+        # 关闭Taskiq Broker
+        await broker.shutdown()
+        logger.info("已关闭Taskiq Broker")

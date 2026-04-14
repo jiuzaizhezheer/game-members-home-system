@@ -25,6 +25,28 @@ async def check_order_timeout():
         return 0
 
 
+@broker.task(task_name="cancel_expired_orders_task", schedule=[{"cron": "* * * * *"}])
+async def cancel_expired_orders_task():
+    """
+    定期扫描并自动取消超过 15 分钟仍未支付的订单
+    """
+    from app.api.deps import get_order_service
+
+    service = get_order_service()
+    try:
+        count = await service.auto_cancel_expired_orders(minutes=15)
+        if count > 0:
+            logger.info(
+                f"[AutoCancel] Successfully cancelled {count} expired pending orders."
+            )
+        else:
+            logger.info("[AutoCancel] No expired pending orders found.")
+        return count
+    except Exception as e:
+        logger.error(f"[AutoCancel] Error occurred: {e}")
+        return 0
+
+
 @broker.task(
     task_name="cancel_unpaid_order_task",
     max_retries=3,

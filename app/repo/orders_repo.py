@@ -123,3 +123,16 @@ async def get_shipped_orders_before(
     )
     result = await session.execute(stmt)
     return result.scalars().all()
+
+
+async def get_expired_pending_orders(
+    session: AsyncSession, before_time
+) -> Sequence[Order]:
+    """获取创建时间早于指定时间且仍处于待支付状态的订单"""
+    stmt = (
+        select(Order)
+        .where(Order.status == "pending")
+        .where(Order.created_at < before_time)
+    )
+    result = await session.execute(stmt)
+    return result.scalars().all()

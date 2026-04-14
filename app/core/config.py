@@ -2,7 +2,7 @@ import os
 
 from dotenv import load_dotenv
 
-# 加载 .env 文件到环境变量
+# 加载 .env 文件到系统环境变量
 load_dotenv()
 
 
@@ -18,7 +18,9 @@ POSTGRES_DB: str = os.getenv("POSTGRES_DB", "game_member_home")
 POSTGRES_HOST: str = os.getenv("POSTGRES_HOST", "127.0.0.1")
 POSTGRES_PORT: int = int(os.getenv("POSTGRES_PORT", 5432))
 
-DATABASE_URL: str = f"postgresql+asyncpg://{POSTGRES_USER}:{POSTGRES_PASSWORD}@{POSTGRES_HOST}:{POSTGRES_PORT}/{POSTGRES_DB}"
+DATABASE_URL: str = (
+    f"postgresql+asyncpg://{POSTGRES_USER}:{POSTGRES_PASSWORD}@{POSTGRES_HOST}:{POSTGRES_PORT}/{POSTGRES_DB}"
+)
 
 # MongoDB
 MONGO_ROOT_USER: str = os.getenv("MONGO_ROOT_USER", "admin")
@@ -27,7 +29,9 @@ MONGO_DB: str = os.getenv("MONGO_DB", "game_member_home")
 MONGO_HOST: str = os.getenv("MONGO_HOST", "127.0.0.1")
 MONGO_PORT: str = os.getenv("MONGO_PORT", "27017")
 
-MONGO_DATABASE_URL: str = f"mongodb://{MONGO_ROOT_USER}:{MONGO_ROOT_PASSWORD}@{MONGO_HOST}:{MONGO_PORT}?authSource=admin"
+MONGO_DATABASE_URL: str = (
+    f"mongodb://{MONGO_ROOT_USER}:{MONGO_ROOT_PASSWORD}@{MONGO_HOST}:{MONGO_PORT}?authSource=admin"
+)
 
 # Redis
 REDIS_HOST: str = os.getenv("REDIS_HOST", "127.0.0.1")
