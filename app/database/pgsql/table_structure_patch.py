@@ -22,13 +22,13 @@ async def table_structure_patch_1():
     await pg_engine.dispose()
 
 
-# 修改 merchants 表中 contact_phone 字段长度为 11
+# 修改 merchants 表中 contact_phone 字段长度为 16，支持 +86 手机号格式
 async def table_structure_patch_2():
     async with pg_engine.begin() as conn:
         print("Modifying contact_phone length in merchants table...")
         await conn.execute(
             text(
-                "ALTER TABLE merchants ALTER COLUMN contact_phone TYPE varchar(11) USING contact_phone::varchar(11);"
+                "ALTER TABLE merchants ALTER COLUMN contact_phone TYPE varchar(16) USING contact_phone::varchar(16);"
             )
         )
         print("Done!")

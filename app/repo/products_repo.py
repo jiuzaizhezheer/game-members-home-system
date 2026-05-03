@@ -1,6 +1,7 @@
 """商品仓储层：商品数据访问"""
 
 import uuid
+from collections.abc import Sequence
 from typing import cast
 
 from sqlalchemy import delete as sa_delete
@@ -19,7 +20,7 @@ async def get_by_id(session: AsyncSession, product_id: str) -> Product | None:
 
 
 async def get_by_ids(
-    session: AsyncSession, product_ids: list[str | uuid.UUID]
+    session: AsyncSession, product_ids: Sequence[str | uuid.UUID]
 ) -> list[Product]:
     """根据多个ID获取商品列表"""
     if not product_ids:

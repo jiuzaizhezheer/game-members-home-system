@@ -467,16 +467,20 @@ class AdminService:
         )
 
         # 批量获取商品信息以填充冗余字段
-        product_ids: list[str | uuid.UUID] = list(set(r.product_id for r in reviews))
+        raw_product_ids = set(r.product_id for r in reviews)
+        product_ids = list(raw_product_ids)
+
         product_map = {}
         if product_ids:
             async with get_pg() as session:
                 products = await products_repo.get_by_ids(session, product_ids)
-                product_map = {p.id: p for p in products}
+                # 使用字符串作为键，避免 UUID 对象与字符串不匹配的问题
+                product_map = {str(p.id): p for p in products}
 
         items = []
         for r in reviews:
-            product = product_map.get(r.product_id)
+            # 统一使用字符串查找
+            product = product_map.get(str(r.product_id))
             items.append(
                 ReviewOut(
                     id=str(r.id),

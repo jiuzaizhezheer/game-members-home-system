@@ -27,7 +27,7 @@ class MerchantUpdateIn(BaseModel):
         default=None, min_length=2, max_length=128, description="店铺名称"
     )
     contact_phone: str | None = Field(
-        default=None, min_length=11, max_length=11, description="联系电话"
+        default=None, min_length=11, max_length=16, description="联系电话"
     )
     shop_desc: str | None = Field(default=None, description="店铺描述")
     logo_url: str | None = Field(default=None, description="店铺Logo URL")
