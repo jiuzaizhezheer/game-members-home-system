@@ -42,6 +42,19 @@ async def update_group(
     return result.scalar_one()
 
 
+async def set_group_active(
+    session: AsyncSession, group_id: uuid.UUID, is_active: bool
+) -> CommunityGroup | None:
+    stmt = (
+        update(CommunityGroup)
+        .where(CommunityGroup.id == group_id)
+        .values(is_active=is_active)
+        .returning(CommunityGroup)
+    )
+    result = await session.execute(stmt)
+    return result.scalar_one_or_none()
+
+
 async def get_groups_by_merchant(
     session: AsyncSession, merchant_id: uuid.UUID, page: int, page_size: int
 ) -> tuple[Sequence[CommunityGroup], int]:
@@ -81,16 +94,21 @@ async def get_group_list(
     user_id: uuid.UUID | None = None,
     page: int = 1,
     page_size: int = 20,
+    is_active: bool | None = True,
 ) -> tuple[Sequence[CommunityGroup], int]:
     """Get group list with optional joined status if user_id provided"""
-    stmt = select(CommunityGroup).where(CommunityGroup.is_active.is_(True))
+    conditions = []
+    if is_active is not None:
+        conditions.append(CommunityGroup.is_active.is_(is_active))
+
+    stmt = select(CommunityGroup)
+    if conditions:
+        stmt = stmt.where(*conditions)
 
     # Count total
-    count_stmt = (
-        select(func.count())
-        .select_from(CommunityGroup)
-        .where(CommunityGroup.is_active.is_(True))
-    )
+    count_stmt = select(func.count()).select_from(CommunityGroup)
+    if conditions:
+        count_stmt = count_stmt.where(*conditions)
     total = (await session.execute(count_stmt)).scalar() or 0
 
     # Paging

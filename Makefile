@@ -63,7 +63,7 @@ worker: ## Run Taskiq worker
 	$(PYTHON) taskiq worker app.tasks.tasks:broker --log-level INFO
 
 scheduler: ## Run Taskiq scheduler
-	$(PYTHON) taskiq scheduler app.tasks.tasks:broker --log-level INFO
+	$(PYTHON) taskiq scheduler app.tasks.broker:scheduler --log-level INFO
 
 # ========================
 # Docker

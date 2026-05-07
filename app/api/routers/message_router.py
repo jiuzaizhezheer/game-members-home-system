@@ -88,10 +88,11 @@ async def get_messages(
     message_service: Annotated[MessageService, Depends(get_message_service)],
     page: Annotated[int, Query(ge=1)] = 1,
     page_size: Annotated[int, Query(ge=1, le=100)] = 30,
+    product_id: Annotated[str | None, Query(description="按商品会话筛选")] = None,
 ) -> SuccessResponse[MessageListOut]:
     """获取与某人的消息历史"""
     result = await message_service.get_messages(
-        user_id, partner_user_id, page, page_size
+        user_id, partner_user_id, page, page_size, product_id
     )
     return SuccessResponse[MessageListOut](message=GET_SUCCESS, data=result)
 
@@ -106,9 +107,10 @@ async def mark_as_read(
     user_id: Annotated[str, Depends(get_current_user_id)],
     partner_user_id: Annotated[str, Path(description="对方用户 ID")],
     message_service: Annotated[MessageService, Depends(get_message_service)],
+    product_id: Annotated[str | None, Query(description="按商品会话筛选")] = None,
 ) -> SuccessResponse[None]:
     """标记会话已读"""
-    await message_service.mark_as_read(user_id, partner_user_id)
+    await message_service.mark_as_read(user_id, partner_user_id, product_id)
     return SuccessResponse[None](message="标记成功")
 
 

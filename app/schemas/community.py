@@ -13,6 +13,7 @@ class GroupItemOut(BaseModel):
     member_count: int = Field(0, description="成员数")
     post_count: int = Field(0, description="帖子数")
     is_joined: bool = Field(False, description="是否已加入")
+    is_active: bool = Field(True, description="是否上架")
     merchant_id: uuid.UUID | None = Field(None, description="所属商家ID")
     created_at: datetime
 

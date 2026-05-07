@@ -12,6 +12,7 @@ class MessageSendIn(BaseModel):
     receiver_user_id: uuid.UUID = Field(description="接收者用户 ID")
     content: str = Field(min_length=1, max_length=2000, description="消息内容")
     content_type: str = Field(default="text", description="消息类型: text, image")
+    product_id: uuid.UUID | None = Field(None, description="关联商品 ID")
     order_id: uuid.UUID | None = Field(None, description="关联订单 ID")
 
 
@@ -22,6 +23,7 @@ class MessageItemOut(BaseModel):
     sender_id: str
     content: str
     content_type: str = "text"
+    product_id: str | None = Field(default=None, description="关联商品 ID")
     is_mine: bool = Field(description="是否是自己发的")
     created_at: datetime
 
@@ -36,6 +38,9 @@ class ConversationItemOut(BaseModel):
     last_message_at: datetime = Field(description="最后一条消息时间")
     unread_count: int = Field(default=0, description="未读消息数")
     avatar_url: str | None = Field(default=None, description="对方头像地址")
+    product_id: str | None = Field(default=None, description="关联商品 ID")
+    product_name: str | None = Field(default=None, description="关联商品名称")
+    product_image: str | None = Field(default=None, description="关联商品图片")
 
 
 class ConversationListOut(BaseModel):

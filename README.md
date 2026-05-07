@@ -101,7 +101,9 @@ pdm run python -m scripts.create_admin --username <username> --email <email> --p
 pdm run taskiq worker app.tasks.tasks:broker --log-level INFO --workers 2
 
 # 启动 Scheduler（处理周期性定时任务）
-pdm run taskiq scheduler app.tasks.tasks:broker --log-level INFO
+# pdm run taskiq scheduler app.tasks.broker:scheduler --log-level INFO
+pdm run taskiq scheduler app.tasks.broker:scheduler app.tasks.tasks --log-level INFO
+
 ```
 
 ### 数据库补丁脚本
@@ -135,3 +137,7 @@ game-members-home-system/
 ├── pyproject.toml                  # PDM 配置与依赖
 └── Makefile                        # 常用命令封装
 ```
+
+
+
+<!-- BackgroundTasks -->

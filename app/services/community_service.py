@@ -20,6 +20,7 @@ from app.schemas.community import (
     GroupDetailOut,
     GroupItemOut,
     GroupListOut,
+    GroupUpdateIn,
     PostCreateIn,
     PostDetailOut,
     PostItemOut,
@@ -53,7 +54,7 @@ class CommunityService:
     async def update_group(
         self,
         group_id: str,
-        payload: GroupCreateIn | dict,
+        payload: GroupCreateIn | GroupUpdateIn | dict,
         merchant_id: str | None = None,
     ) -> GroupDetailOut:
         gid = uuid.UUID(group_id)
@@ -78,6 +79,29 @@ class CommunityService:
             updated = await community_repo.update_group(session, gid, **update_data)
             return GroupDetailOut.model_validate(updated)
 
+    async def set_group_active(
+        self, group_id: str, is_active: bool, merchant_id: str | None = None
+    ) -> GroupDetailOut:
+        gid = uuid.UUID(group_id)
+        mid = uuid.UUID(merchant_id) if merchant_id else None
+
+        async with get_pg() as session:
+            group = await community_repo.get_group_by_id(session, gid)
+            if not group:
+                raise NotFoundError(COMMUNITY_GROUP_NOT_FOUND)
+
+            if mid and group.merchant_id != mid:
+                raise PermissionDeniedError("无法操作非本商家的圈子")
+
+            updated = await community_repo.set_group_active(session, gid, is_active)
+            if not updated:
+                raise NotFoundError(COMMUNITY_GROUP_NOT_FOUND)
+
+            return GroupDetailOut.model_validate(updated)
+
+    async def delete_group(self, group_id: str, merchant_id: str | None = None) -> None:
+        await self.set_group_active(group_id, False, merchant_id)
+
     async def get_merchant_groups(
         self, merchant_id: str, page: int = 1, page_size: int = 20
     ) -> GroupListOut:
@@ -93,12 +117,16 @@ class CommunityService:
             return GroupListOut(items=items, total=total)
 
     async def get_groups(
-        self, user_id: str | None = None, page: int = 1, page_size: int = 20
+        self,
+        user_id: str | None = None,
+        page: int = 1,
+        page_size: int = 20,
+        is_active: bool | None = True,
     ) -> GroupListOut:
         uid = uuid.UUID(user_id) if user_id else None
         async with get_pg() as session:
             groups, total = await community_repo.get_group_list(
-                session, uid, page, page_size
+                session, uid, page, page_size, is_active=is_active
             )
 
             items = []
@@ -117,6 +145,7 @@ class CommunityService:
                         member_count=g.member_count,
                         post_count=g.post_count,
                         is_joined=is_joined,
+                        is_active=g.is_active,
                         merchant_id=g.merchant_id,
                         created_at=g.created_at,
                     )
@@ -147,6 +176,7 @@ class CommunityService:
                 member_count=group.member_count,
                 post_count=group.post_count,
                 is_joined=is_joined,
+                is_active=group.is_active,
                 merchant_id=group.merchant_id,
                 created_at=group.created_at,
             )

@@ -36,7 +36,7 @@ CREATE TABLE IF NOT EXISTS merchants (
     id              uuid PRIMARY KEY,
     user_id         uuid NOT NULL UNIQUE, -- 逻辑外键: users.id
     shop_name       varchar(128) NOT NULL UNIQUE,
-    contact_phone   varchar(11),
+    contact_phone   varchar(16),
     shop_desc       text,
     logo_url        varchar(512),
     created_at      timestamptz NOT NULL DEFAULT now(),

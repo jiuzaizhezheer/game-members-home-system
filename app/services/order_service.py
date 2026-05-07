@@ -809,7 +809,7 @@ class OrderService:
     async def auto_cancel_expired_orders(self, minutes: int = 15) -> int:
         """自动取消超过指定分钟数仍未支付的订单"""
         async with get_pg() as session:
-            expiration_time = datetime.now(UTC) - timedelta(minutes=minutes)
+            expiration_time = datetime.now(UTC) - timedelta(seconds=20)
             orders = await orders_repo.get_expired_pending_orders(
                 session, expiration_time
             )

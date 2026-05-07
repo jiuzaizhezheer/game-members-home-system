@@ -14,6 +14,8 @@ from app.schemas.community import (
     CommentListOut,
     GroupCreateIn,
     GroupDetailOut,
+    GroupListOut,
+    GroupUpdateIn,
     PostListOut,
 )
 from app.services import AdminService, CommunityService
@@ -22,6 +24,25 @@ admin_community_router = APIRouter()
 
 
 # --- 话题圈管理 ---
+
+
+@admin_community_router.get(
+    path="/groups",
+    dependencies=[require_admin],
+    response_model=SuccessResponse[GroupListOut],
+    status_code=status.HTTP_200_OK,
+)
+async def get_community_groups(
+    community_service: Annotated[CommunityService, Depends(get_community_service)],
+    page: Annotated[int, Query(ge=1, description="页码")] = 1,
+    page_size: Annotated[int, Query(ge=1, le=100, description="每页数量")] = 20,
+    is_active: Annotated[bool | None, Query(description="是否上架筛选")] = None,
+) -> SuccessResponse[GroupListOut]:
+    """管理员查看话题圈列表"""
+    data = await community_service.get_groups(
+        page=page, page_size=page_size, is_active=is_active
+    )
+    return SuccessResponse[GroupListOut](message=GET_SUCCESS, data=data)
 
 
 @admin_community_router.post(
@@ -36,6 +57,53 @@ async def create_community_group(
 ):
     """管理员创建话题圈"""
     data = await community_service.create_group(payload)
+    return SuccessResponse[GroupDetailOut](message=POST_SUCCESS, data=data)
+
+
+@admin_community_router.put(
+    path="/groups/{id}",
+    dependencies=[require_admin],
+    response_model=SuccessResponse[GroupDetailOut],
+    status_code=status.HTTP_200_OK,
+)
+async def update_community_group(
+    id: Annotated[str, Path(description="话题圈ID")],
+    payload: GroupUpdateIn,
+    community_service: Annotated[CommunityService, Depends(get_community_service)],
+) -> SuccessResponse[GroupDetailOut]:
+    """管理员编辑话题圈"""
+    data = await community_service.update_group(id, payload)
+    return SuccessResponse[GroupDetailOut](message=POST_SUCCESS, data=data)
+
+
+@admin_community_router.delete(
+    path="/groups/{id}",
+    dependencies=[require_admin],
+    response_model=SuccessResponse[None],
+    status_code=status.HTTP_200_OK,
+)
+async def delete_community_group(
+    id: Annotated[str, Path(description="话题圈ID")],
+    community_service: Annotated[CommunityService, Depends(get_community_service)],
+) -> SuccessResponse[None]:
+    """管理员删除话题圈"""
+    await community_service.delete_group(id)
+    return SuccessResponse[None](message=POST_SUCCESS)
+
+
+@admin_community_router.patch(
+    path="/groups/{id}/status",
+    dependencies=[require_admin],
+    response_model=SuccessResponse[GroupDetailOut],
+    status_code=status.HTTP_200_OK,
+)
+async def update_community_group_status(
+    id: Annotated[str, Path(description="话题圈ID")],
+    is_active: Annotated[bool, Query(description="是否上架")],
+    community_service: Annotated[CommunityService, Depends(get_community_service)],
+) -> SuccessResponse[GroupDetailOut]:
+    """管理员上架/下架话题圈"""
+    data = await community_service.set_group_active(id, is_active)
     return SuccessResponse[GroupDetailOut](message=POST_SUCCESS, data=data)
 
 
