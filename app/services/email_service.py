@@ -41,14 +41,14 @@ class EmailService:
         try:
             html_content = f"""
             <div style="padding: 20px; background-color: #f9f9f9; border-radius: 10px; font-family: sans-serif;">
-                <h2 style="color: #333;">Game Members Home</h2>
+                <h2 style="color: #333;">游戏周边交易系统</h2>
                 <p>您的验证码是：<strong style="color: #4f46e5; font-size: 24px;">{code}</strong></p>
                 <p>该验证码在 5 分钟内有效，请勿将验证码泄露给他人。</p>
             </div>
             """
 
             message = MessageSchema(
-                subject="【游戏玩家中心】登录/注册 验证码",
+                subject="【游戏周边交易系统】登录/注册 验证码",
                 recipients=[NameEmail(name=email, email=email)],
                 body=html_content,
                 subtype=MessageType.html,

@@ -8,9 +8,9 @@ from app.middleware.exception_handlers import register_exception_handlers
 
 app = FastAPI(
     lifespan=lifespan,
-    title="游戏会员之家系统",
+    title="游戏周边交易系统",
     version="1.0.0",
-    description="游戏会员之家系统",
+    description="游戏周边交易系统",
 )
 
 # 设置 CORS

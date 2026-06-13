@@ -6,7 +6,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 
-PROJECT_NAME: str = os.getenv("PROJECT_NAME", "Game Members Home System")
+PROJECT_NAME: str = os.getenv("PROJECT_NAME", "游戏周边交易系统")
 VERSION: str = os.getenv("VERSION", "1.0.0")
 DEBUG: bool = os.getenv("DEBUG", "true").lower() == "true"
 ENV: str = os.getenv("ENV", "local")
@@ -68,7 +68,7 @@ MAIL_FROM: str = os.getenv(
 )  # 发件人地址（通常和发件人账号一致）
 MAIL_PORT: int = int(os.getenv("MAIL_PORT", 465))  # SMTP端口
 MAIL_SERVER: str = os.getenv("MAIL_SERVER", "smtp.qq.com")  # SMTP服务器
-MAIL_FROM_NAME: str = os.getenv("MAIL_FROM_NAME", "Game Members Home")  # 发件人名称
+MAIL_FROM_NAME: str = os.getenv("MAIL_FROM_NAME", "游戏周边交易系统")  # 发件人名称
 MAIL_STARTTLS: bool = (
     os.getenv("MAIL_STARTTLS", "false").lower() == "true"
 )  # 是否使用STARTTLS

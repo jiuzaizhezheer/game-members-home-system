@@ -1,6 +1,6 @@
-# Game Members Home System
+# 游戏周边交易系统
 
-基于 FastAPI 的「游戏会员之家」后端服务，提供业务 API、通知推送、消息与订单等能力。项目采用清晰的分层组织方式（路由 / schema / service / repo / entity / 数据库基础设施），并配套 Taskiq 进行异步/定时任务处理。
+基于 FastAPI 的「游戏周边交易系统」后端服务，提供业务 API、通知推送、消息与订单等能力。项目采用清晰的分层组织方式（路由 / schema / service / repo / entity / 数据库基础设施），并配套 Taskiq 进行异步/定时任务处理。
 
 ## 技术栈
 
